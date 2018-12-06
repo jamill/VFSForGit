@@ -17,8 +17,7 @@ namespace GVFS.Common
         private string gvfsVersion;
         private string gvfsHooksVersion;
 
-        // New enlistment
-        public GVFSEnlistment(string enlistmentRoot, string repoUrl, string gitBinPath, string gvfsHooksRoot, GitAuthentication authentication)
+        public GVFSEnlistment(string enlistmentRoot, string repoUrl, string gitBinPath, string gvfsHooksRoot, GitAuthentication authentication, GitProcessFactory gitProcessFactory)
             : base(
                   enlistmentRoot,
                   Path.Combine(enlistmentRoot, GVFSConstants.WorkingDirectoryRootName),
@@ -26,7 +25,8 @@ namespace GVFS.Common
                   gitBinPath,
                   gvfsHooksRoot,
                   flushFileBuffersForPacks: true,
-                  authentication: authentication)
+                  authentication: authentication,
+                  gitProcessFactory: gitProcessFactory)
         {
             this.NamedPipeName = GVFSPlatform.Instance.GetNamedPipeName(this.EnlistmentRoot);
             this.DotGVFSRoot = Path.Combine(this.EnlistmentRoot, GVFSConstants.DotGVFS.Root);
@@ -34,6 +34,12 @@ namespace GVFS.Common
             this.GitStatusCachePath = Path.Combine(this.DotGVFSRoot, GVFSConstants.DotGVFS.GitStatusCache.CachePath);
             this.GVFSLogsRoot = Path.Combine(this.EnlistmentRoot, GVFSConstants.DotGVFS.LogPath);
             this.LocalObjectsRoot = Path.Combine(this.WorkingDirectoryRoot, GVFSConstants.DotGit.Objects.Root);
+        }
+
+        // New enlistment
+        public GVFSEnlistment(string enlistmentRoot, string repoUrl, string gitBinPath, string gvfsHooksRoot, GitAuthentication authentication)
+            : this(enlistmentRoot, repoUrl, gitBinPath, gvfsHooksRoot, authentication, new GitProcessFactory())
+        {
         }
 
         // Existing, configured enlistment

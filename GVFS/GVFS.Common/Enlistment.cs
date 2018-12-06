@@ -5,7 +5,9 @@ using System.IO;
 namespace GVFS.Common
 {
     public abstract class Enlistment
-    {       
+    {
+        private GitProcessFactory gitProcessFactory;
+
         protected Enlistment(
             string enlistmentRoot,
             string workingDirectoryRoot,
@@ -13,7 +15,8 @@ namespace GVFS.Common
             string gitBinPath,
             string gvfsHooksRoot,
             bool flushFileBuffersForPacks,
-            GitAuthentication authentication)
+            GitAuthentication authentication,
+            GitProcessFactory gitProcessFactory)
         {
             if (string.IsNullOrWhiteSpace(gitBinPath))
             {
@@ -26,6 +29,7 @@ namespace GVFS.Common
             this.GitBinPath = gitBinPath;
             this.GVFSHooksRoot = gvfsHooksRoot;
             this.FlushFileBuffersForPacks = flushFileBuffersForPacks;
+            this.gitProcessFactory = gitProcessFactory;
 
             GitProcess gitProcess = new GitProcess(this);
             if (repoUrl != null)
@@ -89,7 +93,7 @@ namespace GVFS.Common
 
         public virtual GitProcess CreateGitProcess()
         {
-            return new GitProcess(this);
+            return this.gitProcessFactory.CreateGitProcess(this);
         }
     }
 }

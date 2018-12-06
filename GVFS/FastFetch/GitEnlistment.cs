@@ -14,7 +14,8 @@ namespace FastFetch
                   gitBinPath,
                   gvfsHooksRoot: null,
                   flushFileBuffersForPacks: false,
-                  authentication: null)
+                  authentication: null,
+                  gitProcessFactory: new GVFS.Common.Git.GitProcessFactory())
         {
             this.GitObjectsRoot = Path.Combine(repoRoot, GVFSConstants.DotGit.Objects.Root);
             this.LocalObjectsRoot = this.GitObjectsRoot;
@@ -31,7 +32,7 @@ namespace FastFetch
         {
             get { return Path.Combine(this.EnlistmentRoot, GVFSConstants.DotGit.Root, ".fastfetch"); }
         }
-                       
+
         public static GitEnlistment CreateFromCurrentDirectory(string gitBinPath)
         {
             string root = Paths.GetGitEnlistmentRoot(Environment.CurrentDirectory);

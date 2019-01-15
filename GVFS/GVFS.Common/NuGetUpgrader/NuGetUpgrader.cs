@@ -332,6 +332,10 @@ namespace GVFS.Common.NuGetUpgrader
                             $"Running install action: Name: {entry.Name}, Version: {entry.Version}" +
                             $"InstallerPath: {installerPath} Args: {entry.Args}");
 
+                        string progressMessage = string.IsNullOrWhiteSpace(entry.Version) ?
+                            $"Running {entry.Name}" :
+                            $"Running {entry.Name} (version {entry.Version})";
+
                         installActionWrapper(
                             () =>
                             {
@@ -359,7 +363,7 @@ namespace GVFS.Common.NuGetUpgrader
 
                                 return installSuccessful;
                             },
-                            $"Installing {entry.Name} Version: {entry.Version}");
+                            progressMessage);
 
                         if (!installSuccessful)
                         {

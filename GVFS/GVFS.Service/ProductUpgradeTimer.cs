@@ -1,15 +1,20 @@
 ﻿using GVFS.Common;
 using GVFS.Common.FileSystem;
+using GVFS.Common.Git;
+using GVFS.Common.NuGetUpgrader;
 using GVFS.Common.Tracing;
 using GVFS.Upgrader;
 using System;
 using System.Collections.Generic;
+using System.Security.Principal;
 using System.Threading;
+using static GVFS.Common.NuGetUpgrader.NuGetUpgrader;
 
 namespace GVFS.Service
 {
     public class ProductUpgradeTimer : IDisposable
     {
+        private static readonly string GitBinPath = GVFSPlatform.Instance.GitInstallation.GetInstalledGitBinPath();
         private static readonly TimeSpan TimeInterval = TimeSpan.FromDays(1);
         private JsonTracer tracer;
         private Timer timer;
@@ -53,6 +58,18 @@ namespace GVFS.Service
             }
         }
 
+        private string CredentialDelegate(string url, ITracer tracer)
+        {
+            WindowsIdentity identity = WindowsIdentity.GetCurrent();
+            if (this.TryGetPersonalAccessToken(GitBinPath, url, tracer, out string token, out string error))
+            {
+                return token;
+            }
+
+            tracer.RelatedError(error);
+            return null;
+        }
+
         private void TimerCallback(object unusedState)
         {
             string errorMessage = null;
@@ -60,7 +77,7 @@ namespace GVFS.Service
             IProductUpgrader productUpgrader;
             bool deleteExistingDownloads = true;
 
-            if (ProductUpgraderFactory.TryCreateUpgrader(out productUpgrader, this.tracer, out errorMessage))
+            if (ProductUpgraderFactory.TryCreateUpgrader(out productUpgrader, this.tracer, out errorMessage, false, false, this.CredentialDelegate))
             {
                 if (prerunChecker.TryRunPreUpgradeChecks(out string _) && this.TryDownloadUpgrade(productUpgrader, out errorMessage))
                 {
@@ -79,6 +96,12 @@ namespace GVFS.Service
             {
                 ProductUpgraderInfo.DeleteAllInstallerDownloads();
             }
+        }
+
+        private bool TryGetPersonalAccessToken(string gitBinaryPath, string credentialUrl, ITracer tracer, out string token, out string error)
+        {
+            GitProcess gitProcess = new GitProcess(gitBinaryPath, null, null);
+            return gitProcess.TryGetCredentials(tracer, credentialUrl, out string username, out token, out error);
         }
 
         private bool TryDownloadUpgrade(IProductUpgrader productUpgrader, out string errorMessage)

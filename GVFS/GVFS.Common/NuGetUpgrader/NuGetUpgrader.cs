@@ -90,6 +90,7 @@ namespace GVFS.Common.NuGetUpgrader
             ITracer tracer,
             bool dryRun,
             bool noVerify,
+            Func<string, ITracer, string> credentialDelegate,
             out string error)
         {
             NugetUpgraderConfig upgraderConfig = new NugetUpgraderConfig(tracer, new LocalGVFSConfig());
@@ -114,14 +115,22 @@ namespace GVFS.Common.NuGetUpgrader
                 return null;
             }
 
-            if (!TryGetPersonalAccessToken(
-                GitBinPath,
-                upgraderConfig.FeedUrlForCredentials,
-                tracer,
-                out string token,
-                out error))
+            string token;
+            if (credentialDelegate != null)
             {
-                tracer.RelatedWarning($"NuGetUpgrader was not able to acquire Personal Access Token to access NuGet feed. Error: {error}");
+                token = credentialDelegate(upgraderConfig.FeedUrlForCredentials, tracer);
+            }
+            else
+            {
+                if (!TryGetPersonalAccessToken(
+                    GitBinPath,
+                    upgraderConfig.FeedUrlForCredentials,
+                    tracer,
+                    out token,
+                    out error))
+                {
+                    tracer.RelatedWarning($"NuGetUpgrader was not able to acquire Personal Access Token to access NuGet feed. Error: {error}");
+                }
             }
 
             NuGetUpgrader upgrader = new NuGetUpgrader(

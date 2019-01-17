@@ -1,9 +1,5 @@
-using GVFS.Common.FileSystem;
-using GVFS.Common.Git;
-using GVFS.Common.NuGetUpgrader;
 using GVFS.Common.Tracing;
 using System;
-using System.IO;
 
 namespace GVFS.Common
 {
@@ -14,9 +10,10 @@ namespace GVFS.Common
             ITracer tracer,
             out string error,
             bool dryRun = false,
-            bool noVerify = false)
+            bool noVerify = false,
+            Func<string, ITracer, string> credentialDelegate = null)
         {
-            newUpgrader = NuGetUpgrader.NuGetUpgrader.Create(tracer, dryRun, noVerify, out error);
+            newUpgrader = NuGetUpgrader.NuGetUpgrader.Create(tracer, dryRun, noVerify, credentialDelegate, out error);
             if (newUpgrader != null)
             {
                return true;

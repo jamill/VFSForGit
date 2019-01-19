@@ -34,6 +34,26 @@ namespace GVFS.Common
 
         public string TempPath { get; }
 
+        /// <summary>
+        /// Deletes any previously downloaded installers in the Upgrader Download directory.
+        /// This can include old installers which were downloaded, but user never installed
+        /// using gvfs upgrade and GVFS is now up to date already.
+        /// </summary>
+        public static void DeleteAllInstallerDownloads(ITracer tracer = null)
+        {
+            try
+            {
+                PhysicalFileSystem.RecursiveDelete(ProductUpgraderInfo.GetAssetDownloadsPath());
+            }
+            catch (Exception ex)
+            {
+                if (tracer != null)
+                {
+                    tracer.RelatedError($"{nameof(DeleteAllInstallerDownloads)}: Could not remove directory: {ProductUpgraderInfo.GetAssetDownloadsPath()}.{ex.ToString()}");
+                }
+            }
+        }
+
         public static string GetTempPath()
         {
             return Path.Combine(

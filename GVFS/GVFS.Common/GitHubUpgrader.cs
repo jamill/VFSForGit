@@ -27,28 +27,13 @@ namespace GVFS.Common
         private const string GitAssetId = "Git";
         private const string GVFSAssetId = "GVFS";
         private const string GitInstallerFileNamePrefix = "Git-";
-        private const int RepoMountFailureExitCode = 17;
-        private const string ToolsDirectory = "Tools";
-        private static readonly string UpgraderToolName = GVFSPlatform.Instance.Constants.GVFSUpgraderExecutableName;
-        private static readonly string UpgraderToolConfigFile = UpgraderToolName + ".config";
-        private static readonly string[] UpgraderToolAndLibs =
-            {
-                UpgraderToolName,
-                UpgraderToolConfigFile,
-                "CommandLine.dll",
-                "GVFS.Common.dll",
-                "GVFS.Platform.Windows.dll",
-                "Microsoft.Diagnostics.Tracing.EventSource.dll",
-                "netstandard.dll",
-                "System.Net.Http.dll",
-                "Newtonsoft.Json.dll"
-            };
 
         private Version installedVersion;
         private Version newestVersion;
         private Release newestRelease;
         private PhysicalFileSystem fileSystem;
         private ITracer tracer;
+        private LocalUpgraderServices localUpgradeServices;
 
         public GitHubUpgrader(
             string currentVersion,
@@ -56,21 +41,18 @@ namespace GVFS.Common
             GitHubUpgraderConfig upgraderConfig,
             bool dryRun = false,
             bool noVerify = false)
-            : this(currentVersion, tracer)
         {
             this.Config = upgraderConfig;
             this.dryRun = dryRun;
             this.noVerify = noVerify;
-        }
 
-        public GitHubUpgrader(string currentVersion, ITracer tracer)
-        {
             this.installedVersion = new Version(currentVersion);
             this.fileSystem = new PhysicalFileSystem();
             this.tracer = tracer;
 
             string upgradesDirectoryPath = ProductUpgraderInfo.GetUpgradesDirectoryPath();
             this.fileSystem.CreateDirectory(upgradesDirectoryPath);
+            this.localUpgradeServices = new LocalUpgraderServices(tracer, this.fileSystem);
         }
 
         public GitHubUpgraderConfig Config { get; private set; }
@@ -151,6 +133,7 @@ namespace GVFS.Common
         {
             bool downloadedGit = false;
             bool downloadedGVFS = false;
+
             foreach (Asset asset in this.newestRelease.Assets)
             {
                 bool targetOSMatch = string.Equals(Path.GetExtension(asset.Name), GVFSPlatform.Instance.Constants.InstallerExtension, StringComparison.OrdinalIgnoreCase);
@@ -227,55 +210,9 @@ namespace GVFS.Common
             return true;
         }
 
-        // TrySetupToolsDirectory -
-        // Copies GVFS Upgrader tool and its dependencies to a temporary location in ProgramData.
-        // Reason why this is needed - When GVFS.Upgrader.exe is run from C:\ProgramFiles\GVFS folder
-        // upgrade installer that is downloaded and run will fail. This is because it cannot overwrite
-        // C:\ProgramFiles\GVFS\GVFS.Upgrader.exe that is running. Moving GVFS.Upgrader.exe along with
-        // its dependencies to a temporary location inside ProgramData and running GVFS.Upgrader.exe
-        // from this temporary location helps avoid this problem.
         public virtual bool TrySetupToolsDirectory(out string upgraderToolPath, out string error)
         {
-            string rootDirectoryPath = ProductUpgraderInfo.GetUpgradesDirectoryPath();
-            string toolsDirectoryPath = Path.Combine(rootDirectoryPath, ToolsDirectory);
-            Exception exception;
-            if (this.fileSystem.TryCreateDirectory(toolsDirectoryPath, out exception))
-            {
-                string currentPath = ProcessHelper.GetCurrentProcessLocation();
-                error = null;
-                foreach (string name in UpgraderToolAndLibs)
-                {
-                    string toolPath = Path.Combine(currentPath, name);
-                    string destinationPath = Path.Combine(toolsDirectoryPath, name);
-                    try
-                    {
-                        File.Copy(toolPath, destinationPath, overwrite: true);
-                    }
-                    catch (UnauthorizedAccessException e)
-                    {
-                        error = string.Join(
-                            Environment.NewLine,
-                            "File copy error - " + e.Message,
-                            $"Make sure you have write permissions to directory {rootDirectoryPath} and run {GVFSConstants.UpgradeVerbMessages.GVFSUpgradeConfirm} again.");
-                        this.TraceException(e, nameof(this.TrySetupToolsDirectory), $"Error copying {toolPath} to {destinationPath}.");
-                        break;
-                    }
-                    catch (IOException e)
-                    {
-                        error = "File copy error - " + e.Message;
-                        this.TraceException(e, nameof(this.TrySetupToolsDirectory), $"Error copying {toolPath} to {destinationPath}.");
-                        break;
-                    }
-                }
-
-                upgraderToolPath = string.IsNullOrEmpty(error) ? Path.Combine(toolsDirectoryPath, UpgraderToolName) : null;
-                return string.IsNullOrEmpty(error);
-            }
-
-            upgraderToolPath = null;
-            error = exception.Message;
-            this.TraceException(exception, nameof(this.TrySetupToolsDirectory), $"Error creating upgrade tools directory {toolsDirectoryPath}.");
-            return false;
+            return this.localUpgradeServices.TrySetupToolsDirectory(out upgraderToolPath, out error);
         }
 
         public bool TryCleanup(out string error)
@@ -376,10 +313,7 @@ namespace GVFS.Common
 
         protected virtual void RunInstaller(string path, string args, out int exitCode, out string error)
         {
-            ProcessResult processResult = ProcessHelper.Run(path, args);
-
-            exitCode = processResult.ExitCode;
-            error = processResult.Errors;
+            this.localUpgradeServices.RunInstaller(path, args, out exitCode, out error);
         }
 
         private bool TryGetGitVersion(out GitVersion gitVersion, out string error)

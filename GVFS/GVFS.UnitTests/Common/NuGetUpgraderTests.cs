@@ -2,16 +2,13 @@ using GVFS.Common;
 using GVFS.Common.FileSystem;
 using GVFS.Common.NuGetUpgrader;
 using GVFS.Tests.Should;
-using GVFS.UnitTests.Mock;
 using GVFS.UnitTests.Mock.Common;
 using Moq;
 using NuGet.Packaging.Core;
-using NuGet.Protocol;
 using NuGet.Protocol.Core.Types;
 using NUnit.Framework;
 using System;
 using System.Collections.Generic;
-using System.Linq;
 using System.Threading.Tasks;
 
 namespace GVFS.UnitTests.Common
@@ -23,6 +20,10 @@ namespace GVFS.UnitTests.Common
         private const string CurrentVersion = "1.5.1185.0";
         private const string NewerVersion = "1.6.1185.0";
         private const string NewerVersion2 = "1.7.1185.0";
+
+        private const string NuGetFeedUrl = "feedUrlValue";
+        private const string NuGetFeedUrlForCredentials = "feedUrlForCredentialsValue";
+        private const string NuGetFeedName = "feedNameValue";
 
         private NuGetUpgrader upgrader;
         private MockTracer tracer;
@@ -36,18 +37,14 @@ namespace GVFS.UnitTests.Common
         [SetUp]
         public void SetUp()
         {
-            string feedUrl = "feedUrlValue";
-            string feedUrlForCredentials = "feedUrlForCredentialsValue";
-            string feedName = "feedNameValue";
-
-            this.upgraderConfig = new NuGetUpgrader.NugetUpgraderConfig(this.tracer, null, feedUrl, feedName, feedUrlForCredentials);
+            this.upgraderConfig = new NuGetUpgrader.NugetUpgraderConfig(this.tracer, null, NuGetFeedUrl, NuGetFeedName, NuGetFeedUrlForCredentials);
             this.downloadFolder = "downloadFolderTestValue";
 
             this.tracer = new MockTracer();
 
             this.mockNuGetFeed = new Mock<NuGetFeed>(
-                feedUrl,
-                feedName,
+                NuGetFeedUrl,
+                NuGetFeedName,
                 this.downloadFolder,
                 null,
                 this.tracer);
@@ -204,6 +201,71 @@ namespace GVFS.UnitTests.Common
 
             bool downloadSuccessful = this.upgrader.TryDownloadNewestVersion(out message);
             downloadSuccessful.ShouldBeFalse();
+        }
+
+        [TestCase]
+        public void TestUpgradeAllowed()
+        {
+            // Properly Configured NuGet config FeedUrlForCredentials
+            NuGetUpgrader.NugetUpgraderConfig nuGetUpgraderConfig =
+                new NuGetUpgrader.NugetUpgraderConfig(this.tracer, null, NuGetFeedUrl, NuGetFeedName, NuGetFeedUrlForCredentials);
+
+            NuGetUpgrader nuGetUpgrader = new NuGetUpgrader(
+                CurrentVersion,
+                this.tracer,
+                nuGetUpgraderConfig,
+                false,
+                this.mockFileSystem.Object,
+                this.mockNuGetFeed.Object,
+                new LocalUpgraderServices(this.tracer, this.mockFileSystem.Object));
+
+            nuGetUpgrader.UpgradeAllowed(out string _).ShouldBeTrue("NuGetUpgrader config is complete: upgrade should be allowed.");
+
+            // Empty FeedURL
+            nuGetUpgraderConfig =
+                new NuGetUpgrader.NugetUpgraderConfig(this.tracer, null, string.Empty, NuGetFeedName, NuGetFeedUrlForCredentials);
+
+             nuGetUpgrader = new NuGetUpgrader(
+                CurrentVersion,
+                this.tracer,
+                nuGetUpgraderConfig,
+                false,
+                this.mockFileSystem.Object,
+                this.mockNuGetFeed.Object,
+                new LocalUpgraderServices(this.tracer, this.mockFileSystem.Object));
+
+            nuGetUpgrader.UpgradeAllowed(out string _).ShouldBeFalse("Upgrade without FeedURL configured should not be allowed.");
+
+            // Empty packageFeedName
+            nuGetUpgraderConfig =
+                new NuGetUpgrader.NugetUpgraderConfig(this.tracer, null, NuGetFeedUrl, string.Empty, NuGetFeedUrlForCredentials);
+
+            // Empty packageFeedName
+            nuGetUpgrader = new NuGetUpgrader(
+                CurrentVersion,
+                this.tracer,
+                nuGetUpgraderConfig,
+                false,
+                this.mockFileSystem.Object,
+                this.mockNuGetFeed.Object,
+                new LocalUpgraderServices(this.tracer, this.mockFileSystem.Object));
+
+            nuGetUpgrader.UpgradeAllowed(out string _).ShouldBeFalse("Upgrade without FeedName configured should not be allowed.");
+
+            // Empty FeedUrlForCredentials
+            nuGetUpgraderConfig =
+                new NuGetUpgrader.NugetUpgraderConfig(this.tracer, null, NuGetFeedUrl, NuGetFeedName, string.Empty);
+
+            nuGetUpgrader = new NuGetUpgrader(
+                CurrentVersion,
+                this.tracer,
+                nuGetUpgraderConfig,
+                false,
+                this.mockFileSystem.Object,
+                this.mockNuGetFeed.Object,
+                new LocalUpgraderServices(this.tracer, this.mockFileSystem.Object));
+
+            nuGetUpgrader.UpgradeAllowed(out string _).ShouldBeFalse("Upgrade without FeedUrlForCredentials configured should not be allowed.");
         }
 
         private IPackageSearchMetadata GeneratePackageSeachMetadata(Version version)

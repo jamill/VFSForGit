@@ -9,6 +9,7 @@ using NuGet.Protocol.Core.Types;
 using NUnit.Framework;
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Threading.Tasks;
 
 namespace GVFS.UnitTests.Common
@@ -154,7 +155,7 @@ namespace GVFS.UnitTests.Common
         [TestCase]
         public void CanDownloadNewestVersion()
         {
-            Version newVersion;
+            Version actualNewestVersion;
             string message;
             List<IPackageSearchMetadata> availablePackages = new List<IPackageSearchMetadata>()
             {
@@ -162,19 +163,21 @@ namespace GVFS.UnitTests.Common
                 this.GeneratePackageSeachMetadata(new Version(NewerVersion)),
             };
 
-            this.mockNuGetFeed.Setup(foo => foo.QueryFeedAsync(It.IsAny<string>())).ReturnsAsync(new List<IPackageSearchMetadata>(availablePackages));
+            IPackageSearchMetadata newestAvailableVersion = availablePackages.Last();
 
-            // TODO: verify expected argument
-            this.mockNuGetFeed.Setup(foo => foo.DownloadPackage(It.IsAny<PackageIdentity>())).Returns(Task.FromResult("package_path"));
+            string downloadPath = "c:\\test_download_path";
+            this.mockNuGetFeed.Setup(foo => foo.QueryFeedAsync(NuGetFeedName)).ReturnsAsync(new List<IPackageSearchMetadata>(availablePackages));
+            this.mockNuGetFeed.Setup(foo => foo.DownloadPackage(It.Is<PackageIdentity>(packageIdentity => packageIdentity == newestAvailableVersion.Identity))).Returns(Task.FromResult(downloadPath));
 
-            bool success = this.upgrader.TryQueryNewestVersion(out newVersion, out message);
+            bool success = this.upgrader.TryQueryNewestVersion(out actualNewestVersion, out message);
 
             // Assert that no new version was returned
             success.ShouldBeTrue($"Expecting TryQueryNewestVersion to have completed sucessfully. Error: {message}");
-            newVersion.ShouldNotBeNull();
+            actualNewestVersion.ShouldEqual(newestAvailableVersion.Identity.Version.Version, "Actual new version does not match expected new version.");
 
             bool downloadSuccessful = this.upgrader.TryDownloadNewestVersion(out message);
             downloadSuccessful.ShouldBeTrue();
+            this.upgrader.DownloadedPackagePath.ShouldEqual(downloadPath);
         }
 
         [TestCase]
@@ -189,13 +192,10 @@ namespace GVFS.UnitTests.Common
             };
 
             this.mockNuGetFeed.Setup(foo => foo.QueryFeedAsync(It.IsAny<string>())).ReturnsAsync(new List<IPackageSearchMetadata>(availablePackages));
-
-            // TODO: verify expected argument
             this.mockNuGetFeed.Setup(foo => foo.DownloadPackage(It.IsAny<PackageIdentity>())).Throws(new Exception("Network Error"));
 
             bool success = this.upgrader.TryQueryNewestVersion(out newVersion, out message);
 
-            // Assert that no new version was returned
             success.ShouldBeTrue($"Expecting TryQueryNewestVersion to have completed sucessfully. Error: {message}");
             newVersion.ShouldNotBeNull();
 

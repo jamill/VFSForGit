@@ -24,7 +24,6 @@ namespace GVFS.Common.NuGetUpgrader
 
         private ReleaseManifest releaseManifest;
         private IPackageSearchMetadata latestVersion;
-        private string downloadedPackagePath;
 
         public NuGetUpgrader(
             string currentVersion,
@@ -84,6 +83,8 @@ namespace GVFS.Common.NuGetUpgrader
             this.nuGetFeed = nuGetFeed;
             this.localUpgradeServices = localUpgraderServices;
         }
+
+        public string DownloadedPackagePath { get; private set; }
 
         public static NuGetUpgrader Create(
             ITracer tracer,
@@ -225,7 +226,7 @@ namespace GVFS.Common.NuGetUpgrader
             {
                 try
                 {
-                    this.downloadedPackagePath = this.nuGetFeed.DownloadPackage(this.latestVersion.Identity).GetAwaiter().GetResult();
+                    this.DownloadedPackagePath = this.nuGetFeed.DownloadPackage(this.latestVersion.Identity).GetAwaiter().GetResult();
                 }
                 catch (Exception ex)
                 {
@@ -353,7 +354,7 @@ namespace GVFS.Common.NuGetUpgrader
         private string UnzipPackageToTempLocation()
         {
             string extractedPackagePath = this.localUpgradeServices.TempPath;
-            ZipFile.ExtractToDirectory(this.downloadedPackagePath, extractedPackagePath);
+            ZipFile.ExtractToDirectory(this.DownloadedPackagePath, extractedPackagePath);
             return extractedPackagePath;
         }
 

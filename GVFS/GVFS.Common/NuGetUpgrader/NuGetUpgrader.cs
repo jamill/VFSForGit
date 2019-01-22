@@ -321,6 +321,11 @@ namespace GVFS.Common.NuGetUpgrader
                                 return installSuccessful;
                             },
                             $"Installing {entry.Name} Version: {entry.Version}");
+
+                        if (!installSuccessful)
+                        {
+                            break;
+                        }
                     }
                 }
                 catch (Exception ex)
@@ -331,7 +336,7 @@ namespace GVFS.Common.NuGetUpgrader
 
                 if (!installSuccessful)
                 {
-                    activity.RelatedError($"Could not complete all install actions: {localError}");
+                    activity.RelatedError($"Could not complete all install actions. The following error was encountered: {localError}");
                     error = localError;
                     return false;
                 }

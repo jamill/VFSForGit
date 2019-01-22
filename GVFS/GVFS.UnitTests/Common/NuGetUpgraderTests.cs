@@ -204,6 +204,26 @@ namespace GVFS.UnitTests.Common
         }
 
         [TestCase]
+        public void AttemptingToDownloadBeforeQueryingFails()
+        {
+            string message;
+            List<IPackageSearchMetadata> availablePackages = new List<IPackageSearchMetadata>()
+            {
+                this.GeneratePackageSeachMetadata(new Version(CurrentVersion)),
+                this.GeneratePackageSeachMetadata(new Version(NewerVersion)),
+            };
+
+            IPackageSearchMetadata newestAvailableVersion = availablePackages.Last();
+
+            string downloadPath = "c:\\test_download_path";
+            this.mockNuGetFeed.Setup(foo => foo.QueryFeedAsync(NuGetFeedName)).ReturnsAsync(new List<IPackageSearchMetadata>(availablePackages));
+            this.mockNuGetFeed.Setup(foo => foo.DownloadPackage(It.Is<PackageIdentity>(packageIdentity => packageIdentity == newestAvailableVersion.Identity))).Returns(Task.FromResult(downloadPath));
+
+            bool downloadSuccessful = this.upgrader.TryDownloadNewestVersion(out message);
+            downloadSuccessful.ShouldBeFalse();
+        }
+
+        [TestCase]
         public void TestUpgradeAllowed()
         {
             // Properly Configured NuGet config FeedUrlForCredentials

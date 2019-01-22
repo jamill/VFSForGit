@@ -220,7 +220,11 @@ namespace GVFS.Common.NuGetUpgrader
 
         public bool TryDownloadNewestVersion(out string errorMessage)
         {
-            // Check that we have latest version
+            if (this.latestVersion == null)
+            {
+                errorMessage = "No new version to download. Query for latest version to ensure a new version is available before downloading.";
+                return false;
+            }
 
             using (ITracer activity = this.tracer.StartActivity(nameof(this.TryDownloadNewestVersion), EventLevel.Informational))
             {

@@ -33,7 +33,7 @@ namespace GVFS.Common
         private Release newestRelease;
         private PhysicalFileSystem fileSystem;
         private ITracer tracer;
-        private LocalUpgraderServices localUpgradeServices;
+        private UpgraderUtils upgraderUtils;
 
         public GitHubUpgrader(
             string currentVersion,
@@ -52,7 +52,7 @@ namespace GVFS.Common
 
             string upgradesDirectoryPath = ProductUpgraderInfo.GetUpgradesDirectoryPath();
             this.fileSystem.CreateDirectory(upgradesDirectoryPath);
-            this.localUpgradeServices = new LocalUpgraderServices(tracer, this.fileSystem);
+            this.upgraderUtils = new UpgraderUtils(tracer, this.fileSystem);
         }
 
         public GitHubUpgraderConfig Config { get; private set; }
@@ -216,7 +216,7 @@ namespace GVFS.Common
 
         public virtual bool TrySetupToolsDirectory(out string upgraderToolPath, out string error)
         {
-            return this.localUpgradeServices.TrySetupToolsDirectory(out upgraderToolPath, out error);
+            return this.upgraderUtils.TrySetupToolsDirectory(out upgraderToolPath, out error);
         }
 
         public bool TryCleanup(out string error)
@@ -260,7 +260,7 @@ namespace GVFS.Common
             if (!this.fileSystem.TryCreateDirectory(downloadPath, out exception))
             {
                 errorMessage = exception.Message;
-                LocalUpgraderServices.TraceException(this.tracer, exception, nameof(this.TryDownloadAsset), $"Error creating download directory {downloadPath}.");
+                UpgraderUtils.TraceException(this.tracer, exception, nameof(this.TryDownloadAsset), $"Error creating download directory {downloadPath}.");
                 return false;
             }
 
@@ -275,7 +275,7 @@ namespace GVFS.Common
             catch (WebException webException)
             {
                 errorMessage = "Download error: " + webException.Message;
-                LocalUpgraderServices.TraceException(this.tracer, webException, nameof(this.TryDownloadAsset), $"Error downloading asset {asset.Name}.");
+                UpgraderUtils.TraceException(this.tracer, webException, nameof(this.TryDownloadAsset), $"Error downloading asset {asset.Name}.");
                 return false;
             }
 
@@ -304,12 +304,12 @@ namespace GVFS.Common
             catch (HttpRequestException exception)
             {
                 errorMessage = string.Format("Network error: could not connect to GitHub({0}). {1}", GitHubReleaseURL, exception.Message);
-                LocalUpgraderServices.TraceException(this.tracer, exception, nameof(this.TryFetchReleases), $"Error fetching release info.");
+                UpgraderUtils.TraceException(this.tracer, exception, nameof(this.TryFetchReleases), $"Error fetching release info.");
             }
             catch (SerializationException exception)
             {
                 errorMessage = string.Format("Parse error: could not parse releases info from GitHub({0}). {1}", GitHubReleaseURL, exception.Message);
-                LocalUpgraderServices.TraceException(this.tracer, exception, nameof(this.TryFetchReleases), $"Error parsing release info.");
+                UpgraderUtils.TraceException(this.tracer, exception, nameof(this.TryFetchReleases), $"Error parsing release info.");
             }
 
             return false;
@@ -317,7 +317,7 @@ namespace GVFS.Common
 
         protected virtual void RunInstaller(string path, string args, out int exitCode, out string error)
         {
-            this.localUpgradeServices.RunInstaller(path, args, out exitCode, out error);
+            this.upgraderUtils.RunInstaller(path, args, out exitCode, out error);
         }
 
         private bool TryGetGitVersion(out GitVersion gitVersion, out string error)

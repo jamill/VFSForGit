@@ -5,7 +5,7 @@ using System.IO;
 
 namespace GVFS.Common
 {
-    public class LocalUpgraderServices
+    public class UpgraderUtils
     {
         protected PhysicalFileSystem fileSystem;
         protected ITracer tracer;
@@ -25,11 +25,11 @@ namespace GVFS.Common
                 "Newtonsoft.Json.dll"
             };
 
-        public LocalUpgraderServices(ITracer tracer, PhysicalFileSystem fileSystem)
+        public UpgraderUtils(ITracer tracer, PhysicalFileSystem fileSystem)
         {
             this.fileSystem = fileSystem;
             this.tracer = tracer;
-            this.TempPath = LocalUpgraderServices.GetTempPath();
+            this.TempPath = UpgraderUtils.GetTempPath();
         }
 
         public string TempPath { get; }

@@ -164,7 +164,7 @@ namespace GVFS.Upgrader
 
             if (!this.upgrader.UpgradeAllowed(out error))
             {
-                LocalUpgraderServices.DeleteAllInstallerDownloads();
+                UpgraderUtils.DeleteAllInstallerDownloads();
                 this.output.WriteLine(error);
                 consoleError = null;
                 newVersion = null;

@@ -260,7 +260,7 @@ namespace GVFS.Common
             if (!this.fileSystem.TryCreateDirectory(downloadPath, out exception))
             {
                 errorMessage = exception.Message;
-                this.TraceException(exception, nameof(this.TryDownloadAsset), $"Error creating download directory {downloadPath}.");
+                LocalUpgraderServices.TraceException(this.tracer, exception, nameof(this.TryDownloadAsset), $"Error creating download directory {downloadPath}.");
                 return false;
             }
 
@@ -275,7 +275,7 @@ namespace GVFS.Common
             catch (WebException webException)
             {
                 errorMessage = "Download error: " + webException.Message;
-                this.TraceException(webException, nameof(this.TryDownloadAsset), $"Error downloading asset {asset.Name}.");
+                LocalUpgraderServices.TraceException(this.tracer, webException, nameof(this.TryDownloadAsset), $"Error downloading asset {asset.Name}.");
                 return false;
             }
 
@@ -304,12 +304,12 @@ namespace GVFS.Common
             catch (HttpRequestException exception)
             {
                 errorMessage = string.Format("Network error: could not connect to GitHub({0}). {1}", GitHubReleaseURL, exception.Message);
-                this.TraceException(exception, nameof(this.TryFetchReleases), $"Error fetching release info.");
+                LocalUpgraderServices.TraceException(this.tracer, exception, nameof(this.TryFetchReleases), $"Error fetching release info.");
             }
             catch (SerializationException exception)
             {
                 errorMessage = string.Format("Parse error: could not parse releases info from GitHub({0}). {1}", GitHubReleaseURL, exception.Message);
-                this.TraceException(exception, nameof(this.TryFetchReleases), $"Error parsing release info.");
+                LocalUpgraderServices.TraceException(this.tracer, exception, nameof(this.TryFetchReleases), $"Error parsing release info.");
             }
 
             return false;
@@ -404,14 +404,6 @@ namespace GVFS.Common
             }
 
             return installerIsRun;
-        }
-
-        private void TraceException(Exception exception, string method, string message)
-        {
-            EventMetadata metadata = new EventMetadata();
-            metadata.Add("Method", method);
-            metadata.Add("Exception", exception.ToString());
-            this.tracer.RelatedError(metadata, message, Keywords.Telemetry);
         }
 
         private bool TryGetLocalInstallerPath(string assetId, out string path, out string args)

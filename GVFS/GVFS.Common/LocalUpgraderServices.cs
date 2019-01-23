@@ -34,10 +34,17 @@ namespace GVFS.Common
 
         public string TempPath { get; }
 
+        public static void TraceException(ITracer tracer, Exception exception, string method, string message)
+        {
+            EventMetadata metadata = new EventMetadata();
+            metadata.Add("Method", method);
+            metadata.Add("Exception", exception.ToString());
+            tracer.RelatedError(metadata, message, Keywords.Telemetry);
+        }
+
         /// <summary>
         /// Deletes any previously downloaded installers in the Upgrader Download directory.
-        /// This can include old installers which were downloaded, but user never installed
-        /// using gvfs upgrade and GVFS is now up to date already.
+        /// This can include old installers which were downloaded but never installed.
         /// </summary>
         public static void DeleteAllInstallerDownloads(ITracer tracer = null)
         {
@@ -63,8 +70,8 @@ namespace GVFS.Common
 
         // TrySetupToolsDirectory -
         // Copies GVFS Upgrader tool and its dependencies to a temporary location in ProgramData.
-        // Reason why this is needed - When GVFS.Upgrader.exe is run from C:\ProgramFiles\GVFS folder
-        // upgrade installer that is downloaded and run will fail. This is because it cannot overwrite
+        // Reason why this is needed - When GVFS.Upgrader.exe is run from C:\ProgramFiles\GVFS folder,
+        // the upgrade installer that is downloaded and run will fail. This is because it cannot overwrite
         // C:\ProgramFiles\GVFS\GVFS.Upgrader.exe that is running. Moving GVFS.Upgrader.exe along with
         // its dependencies to a temporary location inside ProgramData and running GVFS.Upgrader.exe
         // from this temporary location helps avoid this problem.
@@ -77,7 +84,7 @@ namespace GVFS.Common
             {
                 upgraderToolPath = null;
                 error = exception.Message;
-                this.TraceException(exception, nameof(this.TrySetupToolsDirectory), $"Error creating upgrade tools directory {toolsDirectoryPath}.");
+                TraceException(this.tracer, exception, nameof(this.TrySetupToolsDirectory), $"Error creating upgrade tools directory {toolsDirectoryPath}.");
                 return false;
             }
 
@@ -89,21 +96,21 @@ namespace GVFS.Common
                 string destinationPath = Path.Combine(toolsDirectoryPath, name);
                 try
                 {
-                    File.Copy(toolPath, destinationPath, overwrite: true);
+                    this.fileSystem.CopyFile(toolPath, destinationPath, overwrite: true);
                 }
                 catch (UnauthorizedAccessException e)
                 {
                     error = string.Join(
                         Environment.NewLine,
                         "File copy error - " + e.Message,
-                        $"Make sure you have write permissions to directory {rootDirectoryPath} and run {GVFSConstants.UpgradeVerbMessages.GVFSUpgradeConfirm} again.");
-                    this.TraceException(e, nameof(this.TrySetupToolsDirectory), $"Error copying {toolPath} to {destinationPath}.");
+                        $"Make sure you have write permissions to directory {toolsDirectoryPath} and run {GVFSConstants.UpgradeVerbMessages.GVFSUpgradeConfirm} again.");
+                    TraceException(this.tracer, e, nameof(this.TrySetupToolsDirectory), $"Error copying {toolPath} to {destinationPath}.");
                     break;
                 }
                 catch (IOException e)
                 {
                     error = "File copy error - " + e.Message;
-                    this.TraceException(e, nameof(this.TrySetupToolsDirectory), $"Error copying {toolPath} to {destinationPath}.");
+                    TraceException(this.tracer, e, nameof(this.TrySetupToolsDirectory), $"Error copying {toolPath} to {destinationPath}.");
                     break;
                 }
             }
@@ -128,14 +135,6 @@ namespace GVFS.Common
 
             exitCode = processResult.ExitCode;
             error = processResult.Errors;
-        }
-
-        protected void TraceException(Exception exception, string method, string message)
-        {
-            EventMetadata metadata = new EventMetadata();
-            metadata.Add("Method", method);
-            metadata.Add("Exception", exception.ToString());
-            this.tracer.RelatedError(metadata, message, Keywords.Telemetry);
         }
     }
 }

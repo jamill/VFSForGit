@@ -29,7 +29,7 @@ namespace GVFS.UnitTests.Common
         private NuGetUpgrader upgrader;
         private MockTracer tracer;
 
-        private NuGetUpgrader.NugetUpgraderConfig upgraderConfig;
+        private NuGetUpgrader.NuGetUpgraderConfig upgraderConfig;
         private string downloadFolder;
 
         private Mock<NuGetFeed> mockNuGetFeed;
@@ -38,7 +38,7 @@ namespace GVFS.UnitTests.Common
         [SetUp]
         public void SetUp()
         {
-            this.upgraderConfig = new NuGetUpgrader.NugetUpgraderConfig(this.tracer, null, NuGetFeedUrl, NuGetFeedName, NuGetFeedUrlForCredentials);
+            this.upgraderConfig = new NuGetUpgrader.NuGetUpgraderConfig(this.tracer, null, NuGetFeedUrl, NuGetFeedName, NuGetFeedUrlForCredentials);
             this.downloadFolder = "downloadFolderTestValue";
 
             this.tracer = new MockTracer();
@@ -78,7 +78,7 @@ namespace GVFS.UnitTests.Common
                 this.GeneratePackageSeachMetadata(new Version(NewerVersion)),
             };
 
-            this.mockNuGetFeed.Setup(foo => foo.QueryFeedAsync(It.IsAny<string>())).ReturnsAsync(new List<IPackageSearchMetadata>(availablePackages));
+            this.mockNuGetFeed.Setup(foo => foo.QueryFeedAsync(It.IsAny<string>())).ReturnsAsync(availablePackages);
 
             bool success = this.upgrader.TryQueryNewestVersion(out newVersion, out message);
 
@@ -101,7 +101,7 @@ namespace GVFS.UnitTests.Common
                 this.GeneratePackageSeachMetadata(new Version(NewerVersion2)),
             };
 
-            this.mockNuGetFeed.Setup(foo => foo.QueryFeedAsync(It.IsAny<string>())).ReturnsAsync(new List<IPackageSearchMetadata>(availablePackages));
+            this.mockNuGetFeed.Setup(foo => foo.QueryFeedAsync(It.IsAny<string>())).ReturnsAsync(availablePackages);
 
             bool success = this.upgrader.TryQueryNewestVersion(out newVersion, out message);
 
@@ -123,7 +123,7 @@ namespace GVFS.UnitTests.Common
                 this.GeneratePackageSeachMetadata(new Version(CurrentVersion)),
             };
 
-            this.mockNuGetFeed.Setup(foo => foo.QueryFeedAsync(It.IsAny<string>())).ReturnsAsync(new List<IPackageSearchMetadata>(availablePackages));
+            this.mockNuGetFeed.Setup(foo => foo.QueryFeedAsync(It.IsAny<string>())).ReturnsAsync(availablePackages);
 
             bool success = this.upgrader.TryQueryNewestVersion(out newVersion, out message);
 
@@ -166,8 +166,8 @@ namespace GVFS.UnitTests.Common
             IPackageSearchMetadata newestAvailableVersion = availablePackages.Last();
 
             string downloadPath = "c:\\test_download_path";
-            this.mockNuGetFeed.Setup(foo => foo.QueryFeedAsync(NuGetFeedName)).ReturnsAsync(new List<IPackageSearchMetadata>(availablePackages));
-            this.mockNuGetFeed.Setup(foo => foo.DownloadPackage(It.Is<PackageIdentity>(packageIdentity => packageIdentity == newestAvailableVersion.Identity))).Returns(Task.FromResult(downloadPath));
+            this.mockNuGetFeed.Setup(foo => foo.QueryFeedAsync(NuGetFeedName)).ReturnsAsync(availablePackages);
+            this.mockNuGetFeed.Setup(foo => foo.DownloadPackageAsync(It.Is<PackageIdentity>(packageIdentity => packageIdentity == newestAvailableVersion.Identity))).ReturnsAsync(downloadPath);
 
             bool success = this.upgrader.TryQueryNewestVersion(out actualNewestVersion, out message);
 
@@ -191,8 +191,8 @@ namespace GVFS.UnitTests.Common
                 this.GeneratePackageSeachMetadata(new Version(NewerVersion)),
             };
 
-            this.mockNuGetFeed.Setup(foo => foo.QueryFeedAsync(It.IsAny<string>())).ReturnsAsync(new List<IPackageSearchMetadata>(availablePackages));
-            this.mockNuGetFeed.Setup(foo => foo.DownloadPackage(It.IsAny<PackageIdentity>())).Throws(new Exception("Network Error"));
+            this.mockNuGetFeed.Setup(foo => foo.QueryFeedAsync(It.IsAny<string>())).ReturnsAsync(availablePackages);
+            this.mockNuGetFeed.Setup(foo => foo.DownloadPackageAsync(It.IsAny<PackageIdentity>())).Throws(new Exception("Network Error"));
 
             bool success = this.upgrader.TryQueryNewestVersion(out newVersion, out message);
 
@@ -216,8 +216,8 @@ namespace GVFS.UnitTests.Common
             IPackageSearchMetadata newestAvailableVersion = availablePackages.Last();
 
             string downloadPath = "c:\\test_download_path";
-            this.mockNuGetFeed.Setup(foo => foo.QueryFeedAsync(NuGetFeedName)).ReturnsAsync(new List<IPackageSearchMetadata>(availablePackages));
-            this.mockNuGetFeed.Setup(foo => foo.DownloadPackage(It.Is<PackageIdentity>(packageIdentity => packageIdentity == newestAvailableVersion.Identity))).Returns(Task.FromResult(downloadPath));
+            this.mockNuGetFeed.Setup(foo => foo.QueryFeedAsync(NuGetFeedName)).ReturnsAsync(availablePackages);
+            this.mockNuGetFeed.Setup(foo => foo.DownloadPackageAsync(It.Is<PackageIdentity>(packageIdentity => packageIdentity == newestAvailableVersion.Identity))).ReturnsAsync(downloadPath);
 
             bool downloadSuccessful = this.upgrader.TryDownloadNewestVersion(out message);
             downloadSuccessful.ShouldBeFalse();
@@ -227,8 +227,8 @@ namespace GVFS.UnitTests.Common
         public void TestUpgradeAllowed()
         {
             // Properly Configured NuGet config FeedUrlForCredentials
-            NuGetUpgrader.NugetUpgraderConfig nuGetUpgraderConfig =
-                new NuGetUpgrader.NugetUpgraderConfig(this.tracer, null, NuGetFeedUrl, NuGetFeedName, NuGetFeedUrlForCredentials);
+            NuGetUpgrader.NuGetUpgraderConfig nuGetUpgraderConfig =
+                new NuGetUpgrader.NuGetUpgraderConfig(this.tracer, null, NuGetFeedUrl, NuGetFeedName, NuGetFeedUrlForCredentials);
 
             NuGetUpgrader nuGetUpgrader = new NuGetUpgrader(
                 CurrentVersion,
@@ -239,11 +239,11 @@ namespace GVFS.UnitTests.Common
                 this.mockNuGetFeed.Object,
                 new UpgraderUtils(this.tracer, this.mockFileSystem.Object));
 
-            nuGetUpgrader.UpgradeAllowed(out string _).ShouldBeTrue("NuGetUpgrader config is complete: upgrade should be allowed.");
+            nuGetUpgrader.UpgradeAllowed(out _).ShouldBeTrue("NuGetUpgrader config is complete: upgrade should be allowed.");
 
             // Empty FeedURL
             nuGetUpgraderConfig =
-                new NuGetUpgrader.NugetUpgraderConfig(this.tracer, null, string.Empty, NuGetFeedName, NuGetFeedUrlForCredentials);
+                new NuGetUpgrader.NuGetUpgraderConfig(this.tracer, null, string.Empty, NuGetFeedName, NuGetFeedUrlForCredentials);
 
              nuGetUpgrader = new NuGetUpgrader(
                 CurrentVersion,
@@ -258,7 +258,7 @@ namespace GVFS.UnitTests.Common
 
             // Empty packageFeedName
             nuGetUpgraderConfig =
-                new NuGetUpgrader.NugetUpgraderConfig(this.tracer, null, NuGetFeedUrl, string.Empty, NuGetFeedUrlForCredentials);
+                new NuGetUpgrader.NuGetUpgraderConfig(this.tracer, null, NuGetFeedUrl, string.Empty, NuGetFeedUrlForCredentials);
 
             // Empty packageFeedName
             nuGetUpgrader = new NuGetUpgrader(
@@ -274,7 +274,7 @@ namespace GVFS.UnitTests.Common
 
             // Empty FeedUrlForCredentials
             nuGetUpgraderConfig =
-                new NuGetUpgrader.NugetUpgraderConfig(this.tracer, null, NuGetFeedUrl, NuGetFeedName, string.Empty);
+                new NuGetUpgrader.NuGetUpgraderConfig(this.tracer, null, NuGetFeedUrl, NuGetFeedName, string.Empty);
 
             nuGetUpgrader = new NuGetUpgrader(
                 CurrentVersion,

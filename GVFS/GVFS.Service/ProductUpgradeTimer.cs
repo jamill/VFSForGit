@@ -60,14 +60,20 @@ namespace GVFS.Service
             IProductUpgrader productUpgrader;
             bool deleteExistingDownloads = true;
 
-            if (ProductUpgraderFactory.TryCreateUpgrader(out productUpgrader, this.tracer, out errorMessage))
+            try
             {
-                if (prerunChecker.TryRunPreUpgradeChecks(out string _) && this.TryDownloadUpgrade(productUpgrader, out errorMessage))
+                if (ProductUpgraderFactory.TryCreateUpgrader(out productUpgrader, this.tracer, out errorMessage))
                 {
-                    deleteExistingDownloads = false;
+                    if (prerunChecker.TryRunPreUpgradeChecks(out string _) && this.TryDownloadUpgrade(productUpgrader, out errorMessage))
+                    {
+                        deleteExistingDownloads = false;
+                    }
                 }
-
-                productUpgrader.Dispose();
+            }
+            finally
+            {
+                productUpgrader?.Dispose();
+                productUpgrader = null;
             }
 
             if (errorMessage != null)

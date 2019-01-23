@@ -90,6 +90,7 @@ namespace GVFS.Common
 
         public void Dispose()
         {
+            // GitHubUpgrader does not have resources to dispose.
         }
 
         public bool UpgradeAllowed(out string message)

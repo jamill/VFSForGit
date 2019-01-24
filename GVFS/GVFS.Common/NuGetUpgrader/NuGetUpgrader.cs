@@ -119,7 +119,7 @@ namespace GVFS.Common.NuGetUpgrader
             // At this point, we have determined that the system is set up to use
             // the NuGetUpgrader
 
-            if (upgraderConfig.IsReady(out error))
+            if (!upgraderConfig.IsReady(out error))
             {
                 return false;
             }

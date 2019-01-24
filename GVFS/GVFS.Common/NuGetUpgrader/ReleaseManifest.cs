@@ -42,7 +42,7 @@ namespace GVFS.Common.NuGetUpgrader
             return (ReleaseManifest)serializer.Deserialize(stream, typeof(ReleaseManifest));
         }
 
-        public void AddPlatformInstallManifest(string platform, IEnumerable<ManifestEntry> entries)
+        public void AddPlatformInstallManifest(string platform, IEnumerable<InstallActionInfo> entries)
         {
             InstallManifestPlatform platformManifest = new InstallManifestPlatform(entries);
             this.PlatformInstallManifests.Add(platform, platformManifest);

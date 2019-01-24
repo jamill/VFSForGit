@@ -46,14 +46,14 @@ namespace GVFS.UnitTests.Common
             platformInstallManifest.ShouldNotBeNull();
             platformInstallManifest.InstallActions.Count.ShouldEqual(2);
 
-            this.VerifyManifestEntry(
+            this.VerifyInstallActionInfo(
                 platformInstallManifest.InstallActions[0],
                 "Git",
                 "2.19.0.1.34",
                 "/VERYSILENT /CLOSEAPPLICATIONS",
                 "Installers\\Windows\\G4W\\Git-2.19.0.gvfs.1.34.gc7fb556-64-bit.exe");
 
-            this.VerifyManifestEntry(
+            this.VerifyInstallActionInfo(
                 platformInstallManifest.InstallActions[1],
                 "PreGitInstaller",
                 "0.0.0.1",
@@ -64,10 +64,10 @@ namespace GVFS.UnitTests.Common
         [TestCase]
         public void CanDeserializeAndSerializeReleaseManifest()
         {
-            List<ManifestEntry> entries = new List<ManifestEntry>()
+            List<InstallActionInfo> entries = new List<InstallActionInfo>()
             {
-                this.CreateManifestEntry(),
-                this.CreateManifestEntry()
+                this.CreateInstallActionInfo(),
+                this.CreateInstallActionInfo()
             };
 
             ReleaseManifest releaseManifest = new ReleaseManifest();
@@ -92,10 +92,10 @@ namespace GVFS.UnitTests.Common
             }
         }
 
-        private ManifestEntry CreateManifestEntry()
+        private InstallActionInfo CreateInstallActionInfo()
         {
             int entrySuffix = manifestEntryCount++;
-            return new ManifestEntry(
+            return new InstallActionInfo(
                 $"Installer{entrySuffix}",
                 $"1.{entrySuffix}.1.2",
                 $"/nodowngrade{entrySuffix}",
@@ -112,17 +112,17 @@ namespace GVFS.UnitTests.Common
             }
         }
 
-        private void VerifyManifestEntry(
-            ManifestEntry actualEntry,
+        private void VerifyInstallActionInfo(
+            InstallActionInfo actualEntry,
             string expectedName,
             string expectedVersion,
             string expectedArgs,
             string expectedInstallerRelativePath)
         {
-            actualEntry.Name.ShouldEqual(expectedName, "ManifestEntry name does not match expected value");
-            actualEntry.Version.ShouldEqual(expectedVersion, "ManifestEntry version does not match expected value");
-            actualEntry.Args.ShouldEqual(expectedArgs, "ManifestEntry Args does not match expected value");
-            actualEntry.InstallerRelativePath.ShouldEqual(expectedInstallerRelativePath, "ManifestEntry InstallerRelativePath does not match expected value");
+            actualEntry.Name.ShouldEqual(expectedName, "InstallActionInfo name does not match expected value");
+            actualEntry.Version.ShouldEqual(expectedVersion, "InstallActionInfo version does not match expected value");
+            actualEntry.Args.ShouldEqual(expectedArgs, "InstallActionInfo Args does not match expected value");
+            actualEntry.InstallerRelativePath.ShouldEqual(expectedInstallerRelativePath, "InstallActionInfo InstallerRelativePath does not match expected value");
         }
 
         private void VerifyPlatformManifestsAreEqual(InstallManifestPlatform expected, InstallManifestPlatform actual)

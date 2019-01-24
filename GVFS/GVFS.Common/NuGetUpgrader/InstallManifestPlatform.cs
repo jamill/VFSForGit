@@ -7,14 +7,14 @@ namespace GVFS.Common.NuGetUpgrader
     {
         public InstallManifestPlatform()
         {
-            this.InstallActions = new List<ManifestEntry>();
+            this.InstallActions = new List<InstallActionInfo>();
         }
 
-        public InstallManifestPlatform(IEnumerable<ManifestEntry> entries)
+        public InstallManifestPlatform(IEnumerable<InstallActionInfo> entries)
         {
-            this.InstallActions = entries?.ToList() ?? new List<ManifestEntry>();
+            this.InstallActions = entries?.ToList() ?? new List<InstallActionInfo>();
         }
 
-        public List<ManifestEntry> InstallActions { get; }
+        public List<InstallActionInfo> InstallActions { get; }
     }
 }

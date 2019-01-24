@@ -324,7 +324,7 @@ namespace GVFS.Common.NuGetUpgrader
 
                     this.fileSystem.CreateDirectory(upgradesDirectoryPath);
 
-                    foreach (ManifestEntry entry in platformInstallManifest.InstallActions)
+                    foreach (InstallActionInfo entry in platformInstallManifest.InstallActions)
                     {
                         string installerPath = Path.Combine(extractedPackagePath, ContentDirectoryName, entry.InstallerRelativePath);
 

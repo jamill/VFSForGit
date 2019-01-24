@@ -1,8 +1,8 @@
 namespace GVFS.Common.NuGetUpgrader
 {
-    public class ManifestEntry
+    public class InstallActionInfo
     {
-        public ManifestEntry(string name, string version, string args, string installerRelativePath)
+        public InstallActionInfo(string name, string version, string args, string installerRelativePath)
         {
             this.Name = name;
             this.Version = version;

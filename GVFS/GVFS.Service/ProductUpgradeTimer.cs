@@ -57,7 +57,7 @@ namespace GVFS.Service
         {
             string errorMessage = null;
             InstallerPreRunChecker prerunChecker = new InstallerPreRunChecker(this.tracer, string.Empty);
-            IProductUpgrader productUpgrader;
+            IProductUpgrader productUpgrader = null;
             bool deleteExistingDownloads = true;
 
             try

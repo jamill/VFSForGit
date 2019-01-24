@@ -1,5 +1,6 @@
 using GVFS.Common.Tracing;
 using NuGet.Common;
+using NuGet.Configuration;
 using NuGet.Packaging.Core;
 using NuGet.Protocol;
 using NuGet.Protocol.Core.Types;
@@ -41,8 +42,8 @@ namespace GVFS.Common.NuGetUpgrader
             this.tracer = tracer;
 
             // Configure the NuGet SourceCacheContext -
-            // - Direct download packages - do not download
-            //   to global NuGet cache.
+            // - Direct download packages - do not download to global
+            //   NuGet cache. This is set in  NullSourceCacheContext.Instance
             // - NoCache - Do not cache package version lists
             this.sourceCacheContext = NullSourceCacheContext.Instance;
             this.sourceCacheContext.NoCache = true;
@@ -52,19 +53,7 @@ namespace GVFS.Common.NuGetUpgrader
             this.sourceRepository = Repository.Factory.GetCoreV3(this.feedUrl);
             if (!string.IsNullOrEmpty(this.personalAccessToken))
             {
-                this.sourceRepository.PackageSource.Credentials = this.Credentials;
-            }
-        }
-
-        private NuGet.Configuration.PackageSourceCredential Credentials
-        {
-            get
-            {
-                return NuGet.Configuration.PackageSourceCredential.FromUserInput(
-                    "VfsForGitNugetUpgrader",
-                    "PersonalAccessToken",
-                    this.personalAccessToken,
-                    false);
+                this.sourceRepository.PackageSource.Credentials = BuildCredentialsFromPAT(this.personalAccessToken);
             }
         }
 
@@ -105,7 +94,7 @@ namespace GVFS.Common.NuGetUpgrader
         /// </summary>
         /// <param name="packageId">PackageIdentity to download.</param>
         /// <returns>Path to the downloaded package.</returns>
-        public virtual async Task<string> DownloadPackage(PackageIdentity packageId)
+        public virtual async Task<string> DownloadPackageAsync(PackageIdentity packageId)
         {
             string downloadPath = Path.Combine(this.downloadFolder, $"{this.feedName}.zip");
             PackageDownloadContext packageDownloadContext = new PackageDownloadContext(
@@ -132,11 +121,20 @@ namespace GVFS.Common.NuGetUpgrader
             return downloadPath;
         }
 
+        private static PackageSourceCredential BuildCredentialsFromPAT(string personalAccessToken)
+        {
+            return NuGet.Configuration.PackageSourceCredential.FromUserInput(
+                "VfsForGitNugetUpgrader",
+                "PersonalAccessToken",
+                personalAccessToken,
+                false);
+        }
+
         /// <summary>
         /// Implementation of logger used by NuGet library. It takes all output
         /// and redirects it to the GVFS logger.
         /// </summary>
-        public class Logger : ILogger
+        private class Logger : ILogger
         {
             private ITracer tracer;
 

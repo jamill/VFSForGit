@@ -12,23 +12,23 @@ namespace GVFS.Common.NuGetUpgrader
 {
     public class NuGetUpgrader : IProductUpgrader
     {
-        private static readonly string GitBinPath = GVFSPlatform.Instance.GitInstallation.GetInstalledGitBinPath();
-
+        private const string ContentDirectoryName = "content";
+        private const string InstallManifestFileName = "install-manifest.json";
         private readonly bool dryRun;
         private readonly PhysicalFileSystem fileSystem;
         private readonly Version installedVersion;
-        private readonly LocalUpgraderServices localUpgradeServices;
-        private readonly NugetUpgraderConfig nugetUpgraderConfig;
-        private readonly NuGetFeed nuGetFeed;
+        private readonly UpgraderUtils upgraderUtils;
+        private readonly NuGetUpgraderConfig nuGetUpgraderConfig;
         private readonly ITracer tracer;
 
         private ReleaseManifest releaseManifest;
-        private IPackageSearchMetadata latestVersion;
+        private IPackageSearchMetadata highestVersionAvailable;
+        private NuGetFeed nuGetFeed;
 
         public NuGetUpgrader(
             string currentVersion,
             ITracer tracer,
-            NugetUpgraderConfig config,
+            NuGetUpgraderConfig config,
             bool dryRun,
             string downloadFolder,
             string personalAccessToken)
@@ -50,7 +50,7 @@ namespace GVFS.Common.NuGetUpgrader
         public NuGetUpgrader(
             string currentVersion,
             ITracer tracer,
-            NugetUpgraderConfig config,
+            NuGetUpgraderConfig config,
             bool dryRun,
             PhysicalFileSystem fileSystem,
             NuGetFeed nuGetFeed)
@@ -61,70 +61,82 @@ namespace GVFS.Common.NuGetUpgrader
                 dryRun,
                 fileSystem,
                 nuGetFeed,
-                new LocalUpgraderServices(tracer, fileSystem))
+                new UpgraderUtils(tracer, fileSystem))
         {
         }
 
         public NuGetUpgrader(
             string currentVersion,
             ITracer tracer,
-            NugetUpgraderConfig config,
+            NuGetUpgraderConfig config,
             bool dryRun,
             PhysicalFileSystem fileSystem,
             NuGetFeed nuGetFeed,
-            LocalUpgraderServices localUpgraderServices)
+            UpgraderUtils localUpgraderServices)
         {
             this.dryRun = dryRun;
-            this.nugetUpgraderConfig = config;
+            this.nuGetUpgraderConfig = config;
             this.tracer = tracer;
             this.installedVersion = new Version(currentVersion);
 
             this.fileSystem = fileSystem;
             this.nuGetFeed = nuGetFeed;
-            this.localUpgradeServices = localUpgraderServices;
+            this.upgraderUtils = localUpgraderServices;
         }
 
         public string DownloadedPackagePath { get; private set; }
 
-        public static NuGetUpgrader Create(
+        /// <summary>
+        /// Try to load a NuGetUpgrader from config settings.
+        /// <isConfigured>Flag to indicate whether the system is configured to use a NuGetUpgrader.
+        /// A NuGetUpgrader can be set as the Upgrader to use, but it might not be properly configured.
+        /// </isConfigured>
+        /// <Returns>True if able to load a properly configured NuGetUpgrader<Returns>
+        /// </summary>
+        public static bool TryCreate(
             ITracer tracer,
             bool dryRun,
             bool noVerify,
+            out NuGetUpgrader nuGetUpgrader,
+            out bool isConfigured,
             out string error)
         {
-            NugetUpgraderConfig upgraderConfig = new NugetUpgraderConfig(tracer, new LocalGVFSConfig());
-            bool isConfigured;
-            bool isEnabled;
+            NuGetUpgraderConfig upgraderConfig = new NuGetUpgraderConfig(tracer, new LocalGVFSConfig());
+            nuGetUpgrader = null;
+            isConfigured = false;
 
-            if (!upgraderConfig.TryLoad(out isEnabled, out isConfigured, out error))
+            if (!upgraderConfig.TryLoad(out error))
             {
-                if (isEnabled && !isConfigured)
-                {
-                    tracer.RelatedWarning($"NuGetUpgrader is enabled, but is not properly configured. Error: {error}");
+                nuGetUpgrader = null;
+                return false;
+            }
 
-                    return new NuGetUpgrader(
-                        ProcessHelper.GetCurrentProcessVersion(),
-                        tracer,
-                        upgraderConfig,
-                        dryRun,
-                        ProductUpgraderInfo.GetAssetDownloadsPath(),
-                        personalAccessToken: null);
-                }
+            if (!(isConfigured = upgraderConfig.IsConfigured(out error)))
+            {
+                return false;
+            }
 
-                return null;
+            // At this point, we have determined that the system is set up to use
+            // the NuGetUpgrader
+
+            if (upgraderConfig.IsReady(out error))
+            {
+                return false;
             }
 
             if (!TryGetPersonalAccessToken(
-                GitBinPath,
-                upgraderConfig.FeedUrlForCredentials,
-                tracer,
-                out string token,
-                out error))
+                    GVFSPlatform.Instance.GitInstallation.GetInstalledGitBinPath(),
+                    upgraderConfig.FeedUrlForCredentials,
+                    tracer,
+                    out string token,
+                    out string getPatError))
             {
-                tracer.RelatedWarning($"NuGetUpgrader was not able to acquire Personal Access Token to access NuGet feed. Error: {error}");
+                error = $"NuGetUpgrader was not able to acquire Personal Access Token to access NuGet feed. Error: {getPatError}";
+                tracer.RelatedError(error);
+                return false;
             }
 
-            NuGetUpgrader upgrader = new NuGetUpgrader(
+            nuGetUpgrader = new NuGetUpgrader(
                 ProcessHelper.GetCurrentProcessVersion(),
                 tracer,
                 upgraderConfig,
@@ -132,86 +144,87 @@ namespace GVFS.Common.NuGetUpgrader
                 ProductUpgraderInfo.GetAssetDownloadsPath(),
                 token);
 
-            return upgrader;
+            return true;
         }
 
         public void Dispose()
         {
             this.nuGetFeed?.Dispose();
+            this.nuGetFeed = null;
         }
 
         public bool UpgradeAllowed(out string message)
         {
-            if (string.IsNullOrEmpty(this.nugetUpgraderConfig.FeedUrl))
+            if (string.IsNullOrEmpty(this.nuGetUpgraderConfig.FeedUrl))
             {
                 message = "Nuget Feed URL has not been configured";
                 return false;
             }
-            else if (string.IsNullOrEmpty(this.nugetUpgraderConfig.PackageFeedName))
+            else if (string.IsNullOrEmpty(this.nuGetUpgraderConfig.PackageFeedName))
+            {
+                message = "NuGet package feed has not been configured";
+                return false;
+            }
+            else if (string.IsNullOrEmpty(this.nuGetUpgraderConfig.FeedUrlForCredentials))
             {
                 message = "URL to lookup credentials has not been configured";
                 return false;
-            }
-            else if (string.IsNullOrEmpty(this.nugetUpgraderConfig.FeedUrlForCredentials))
-            {
-                message = "URL to lookup credentials has not been configured";
-                return false;
-            }
-            else
-            {
-                message = null;
             }
 
             message = null;
             return true;
         }
 
-        public bool TryQueryNewestVersion(out Version newVersion, out string message)
+        public bool TryQueryNewestVersion(out Version newVersion, out string errorMessage)
         {
             try
             {
-                IList<IPackageSearchMetadata> queryResults = this.nuGetFeed.QueryFeedAsync(this.nugetUpgraderConfig.PackageFeedName).GetAwaiter().GetResult();
+                IList<IPackageSearchMetadata> queryResults = this.nuGetFeed.QueryFeedAsync(this.nuGetUpgraderConfig.PackageFeedName).GetAwaiter().GetResult();
 
-                // Find the latest package
-                IPackageSearchMetadata highestVersion = null;
+                // Find the package with the highest version
+                IPackageSearchMetadata highestVersionAvailable = null;
                 foreach (IPackageSearchMetadata result in queryResults)
                 {
-                    if (highestVersion == null || result.Identity.Version > highestVersion.Identity.Version)
+                    if (highestVersionAvailable == null || result.Identity.Version > highestVersionAvailable.Identity.Version)
                     {
-                        highestVersion = result;
+                        highestVersionAvailable = result;
                     }
                 }
 
-                if (highestVersion != null &&
-                    highestVersion.Identity.Version.Version > this.installedVersion)
+                if (highestVersionAvailable != null &&
+                    highestVersionAvailable.Identity.Version.Version > this.installedVersion)
                 {
-                    this.latestVersion = highestVersion;
+                    this.highestVersionAvailable = highestVersionAvailable;
                 }
 
-                newVersion = this.latestVersion?.Identity?.Version?.Version;
+                newVersion = this.highestVersionAvailable?.Identity?.Version?.Version;
 
                 if (newVersion != null)
                 {
-                    this.tracer.RelatedInfo($"{nameof(this.TryQueryNewestVersion)} - new version available: installedVersion: {this.installedVersion}, latestAvailableVersion: {highestVersion}");
-                    message = $"New version {highestVersion.Identity.Version} is available.";
+                    this.tracer.RelatedInfo($"{nameof(this.TryQueryNewestVersion)} - new version available: installedVersion: {this.installedVersion}, highestVersionAvailable: {highestVersionAvailable}");
+                    errorMessage = $"New version {highestVersionAvailable.Identity.Version} is available.";
                     return true;
                 }
-                else if (highestVersion != null)
+                else if (highestVersionAvailable != null)
                 {
                     this.tracer.RelatedInfo($"{nameof(this.TryQueryNewestVersion)} - up-to-date");
-                    message = $"Latest available version is {highestVersion.Identity.Version}, you are up-to-date";
+                    errorMessage = $"highest version available is {highestVersionAvailable.Identity.Version}, you are up-to-date";
                     return true;
                 }
                 else
                 {
                     this.tracer.RelatedInfo($"{nameof(this.TryQueryNewestVersion)} - no versions available from feed.");
-                    message = $"No versions available via feed.";
+                    errorMessage = $"No versions available via feed.";
                 }
             }
             catch (Exception ex)
             {
-                this.tracer.RelatedError($"{nameof(this.TryQueryNewestVersion)} failed with: {ex.Message}");
-                message = ex.Message;
+                UpgraderUtils.TraceException(
+                    this.tracer,
+                    ex,
+                    nameof(this.TryQueryNewestVersion),
+                    "Exception encountered querying for newest version of upgrade package.");
+                errorMessage = ex.Message;
                 newVersion = null;
             }
 
@@ -220,9 +233,14 @@ namespace GVFS.Common.NuGetUpgrader
 
         public bool TryDownloadNewestVersion(out string errorMessage)
         {
-            if (this.latestVersion == null)
+            if (this.highestVersionAvailable == null)
             {
-                errorMessage = "No new version to download. Query for latest version to ensure a new version is available before downloading.";
+                // If we hit this code path, it indicates there was a
+                // programmer error.  The expectation is that this
+                // method will only be called after
+                // TryQueryNewestVersion has been called, and
+                // indicates that a newer version is available.
+                errorMessage = "No new version to download. Query for newest version to ensure a new version is available before downloading.";
                 return false;
             }
 
@@ -230,11 +248,15 @@ namespace GVFS.Common.NuGetUpgrader
             {
                 try
                 {
-                    this.DownloadedPackagePath = this.nuGetFeed.DownloadPackage(this.latestVersion.Identity).GetAwaiter().GetResult();
+                    this.DownloadedPackagePath = this.nuGetFeed.DownloadPackageAsync(this.highestVersionAvailable.Identity).GetAwaiter().GetResult();
                 }
                 catch (Exception ex)
                 {
-                    activity.RelatedError($"{nameof(this.TryDownloadNewestVersion)} - error encountered: ${ex.Message}");
+                    UpgraderUtils.TraceException(
+                        activity,
+                        ex,
+                        nameof(this.TryDownloadNewestVersion),
+                        "Exception encountered downloading newest version of upgrade package.");
                     errorMessage = ex.Message;
                     return false;
                 }
@@ -248,12 +270,16 @@ namespace GVFS.Common.NuGetUpgrader
         {
             error = null;
             Exception e;
-            bool success = this.fileSystem.TryDeleteDirectory(this.localUpgradeServices.TempPath, out e);
+            bool success = this.fileSystem.TryDeleteDirectory(this.upgraderUtils.TempPath, out e);
 
             if (!success)
             {
                 error = e?.Message;
-                this.tracer.RelatedError($"{nameof(this.TryCleanup)} - Error encountered: {error}");
+                UpgraderUtils.TraceException(
+                    this.tracer,
+                    e,
+                    nameof(this.TryDownloadNewestVersion),
+                    "Exception encountered cleaning up downloaded upgrade package.");
             }
 
             return success;
@@ -272,17 +298,22 @@ namespace GVFS.Common.NuGetUpgrader
                     string upgradesDirectoryPath = ProductUpgraderInfo.GetUpgradesDirectoryPath();
 
                     Exception e;
-                    if (!this.fileSystem.TryDeleteDirectory(this.localUpgradeServices.TempPath, out e))
+                    if (!this.fileSystem.TryDeleteDirectory(this.upgraderUtils.TempPath, out e))
                     {
+                        UpgraderUtils.TraceException(
+                            this.tracer,
+                            e,
+                            nameof(this.TryRunInstaller),
+                            "Exception encountered trying to delete download directory in preperation for download.");
+
                         error = e?.Message;
                         return false;
                     }
 
                     string extractedPackagePath = this.UnzipPackageToTempLocation();
-                    this.releaseManifest = ReleaseManifest.FromJsonFile(Path.Combine(extractedPackagePath, "content", "install-manifest.json"));
-                    InstallManifestPlatform platformInstallManifest = this.releaseManifest.PlatformInstallManifests[platformKey];
-
-                    if (platformInstallManifest == null)
+                    this.releaseManifest = ReleaseManifest.FromJsonFile(Path.Combine(extractedPackagePath, ContentDirectoryName, InstallManifestFileName));
+                    if (!this.releaseManifest.PlatformInstallManifests.TryGetValue(platformKey, out InstallManifestPlatform platformInstallManifest) ||
+                        platformInstallManifest == null)
                     {
                         activity.RelatedError($"Extracted ReleaseManifest from JSON, but there was no entry for {platformKey}.");
                         error = $"No entry in the manifest for the current platform ({platformKey}). Please verify the upgrade package.";
@@ -295,7 +326,7 @@ namespace GVFS.Common.NuGetUpgrader
 
                     foreach (ManifestEntry entry in platformInstallManifest.InstallActions)
                     {
-                        string installerPath = Path.Combine(extractedPackagePath, "content", entry.InstallerRelativePath);
+                        string installerPath = Path.Combine(extractedPackagePath, ContentDirectoryName, entry.InstallerRelativePath);
 
                         activity.RelatedInfo(
                             $"Running install action: Name: {entry.Name}, Version: {entry.Version}" +
@@ -306,13 +337,21 @@ namespace GVFS.Common.NuGetUpgrader
                             {
                                 if (!this.dryRun)
                                 {
-                                    this.localUpgradeServices.RunInstaller(installerPath, entry.Args, out installerExitCode, out localError);
+                                    this.upgraderUtils.RunInstaller(installerPath, entry.Args, out installerExitCode, out localError);
                                 }
                                 else
                                 {
-                                    // This is a temporary workaround to force the step to be written
-                                    // out to the console.
-                                    Thread.Sleep(2500);
+                                    // We add a sleep here to ensure
+                                    // the message for this install
+                                    // action is written to the
+                                    // console.  Even though the
+                                    // message is written with a delay
+                                    // of 0, the messages are not
+                                    // always written out.  If / when
+                                    // we can ensure that the message
+                                    // is written out to console, then
+                                    // we can remove this sleep.
+                                    Thread.Sleep(1500);
                                     installerExitCode = 0;
                                 }
 
@@ -351,7 +390,7 @@ namespace GVFS.Common.NuGetUpgrader
 
         public bool TrySetupToolsDirectory(out string upgraderToolPath, out string error)
         {
-            return this.localUpgradeServices.TrySetupToolsDirectory(out upgraderToolPath, out error);
+            return this.upgraderUtils.TrySetupToolsDirectory(out upgraderToolPath, out error);
         }
 
         private static bool TryGetPersonalAccessToken(string gitBinaryPath, string credentialUrl, ITracer tracer, out string token, out string error)
@@ -362,23 +401,23 @@ namespace GVFS.Common.NuGetUpgrader
 
         private string UnzipPackageToTempLocation()
         {
-            string extractedPackagePath = this.localUpgradeServices.TempPath;
+            string extractedPackagePath = this.upgraderUtils.TempPath;
             ZipFile.ExtractToDirectory(this.DownloadedPackagePath, extractedPackagePath);
             return extractedPackagePath;
         }
 
-        public class NugetUpgraderConfig
+        public class NuGetUpgraderConfig
         {
             private readonly ITracer tracer;
             private readonly LocalGVFSConfig localConfig;
 
-            public NugetUpgraderConfig(ITracer tracer, LocalGVFSConfig localGVFSConfig)
+            public NuGetUpgraderConfig(ITracer tracer, LocalGVFSConfig localGVFSConfig)
             {
                 this.tracer = tracer;
                 this.localConfig = localGVFSConfig;
             }
 
-            public NugetUpgraderConfig(
+            public NuGetUpgraderConfig(
                 ITracer tracer,
                 LocalGVFSConfig localGVFSConfig,
                 string feedUrl,
@@ -395,70 +434,77 @@ namespace GVFS.Common.NuGetUpgrader
             public string PackageFeedName { get; private set; }
             public string FeedUrlForCredentials { get; private set; }
 
-            public bool TryLoad(out bool isEnabled, out bool isCorrectlyConfigured, out string error)
+            /// <summary>
+            /// Check if the NuGetUpgrader is ready for use. A
+            /// NuGetUpgrader is considered ready if all required
+            /// config settings are present.
+            /// </summary>
+            public bool IsReady(out string error)
             {
-                error = string.Empty;
-
-                string configValue;
-                string readError;
-
-                bool feedURLAvailable = false;
-                if (this.localConfig.TryGetConfig(GVFSConstants.LocalGVFSConfig.UpgradeFeedUrl, out configValue, out readError))
-                {
-                    feedURLAvailable = !string.IsNullOrWhiteSpace(configValue);
-                }
-                else
-                {
-                    this.tracer.RelatedError(readError);
-                }
-
-                this.FeedUrl = configValue;
-
-                bool credentialURLAvailable = false;
-                if (this.localConfig.TryGetConfig(GVFSConstants.LocalGVFSConfig.UpgradeFeedCredentialUrl, out configValue, out readError))
-                {
-                    credentialURLAvailable = !string.IsNullOrWhiteSpace(configValue);
-                }
-                else
-                {
-                    this.tracer.RelatedError(readError);
-                }
-
-                this.FeedUrlForCredentials = configValue;
-
-                bool feedNameAvailable = false;
-                if (this.localConfig.TryGetConfig(GVFSConstants.LocalGVFSConfig.UpgradeFeedPackageName, out configValue, out readError))
-                {
-                    feedNameAvailable = !string.IsNullOrWhiteSpace(configValue);
-                }
-                else
-                {
-                    this.tracer.RelatedError(readError);
-                }
-
-                this.PackageFeedName = configValue;
-
-                isEnabled = feedURLAvailable || credentialURLAvailable || feedNameAvailable;
-                isCorrectlyConfigured = feedURLAvailable && credentialURLAvailable && feedNameAvailable;
-
-                if (!isEnabled)
+                if (string.IsNullOrEmpty(this.FeedUrl) ||
+                    string.IsNullOrEmpty(this.PackageFeedName) ||
+                    string.IsNullOrEmpty(this.FeedUrlForCredentials))
                 {
                     error = string.Join(
                         Environment.NewLine,
-                        "Nuget upgrade server is not configured.",
+                        "One or more required settings for NuGetUpgrader are missing.",
                         $"Use `gvfs config [{GVFSConstants.LocalGVFSConfig.UpgradeFeedUrl} | {GVFSConstants.LocalGVFSConfig.UpgradeFeedCredentialUrl} | {GVFSConstants.LocalGVFSConfig.UpgradeFeedPackageName}] <value>` to set the config.");
                     return false;
                 }
 
-                if (!isCorrectlyConfigured)
+                error = null;
+                return true;
+            }
+
+            /// <summary>
+            /// Check if the NuGetUpgrader is configured.
+            /// </summary>
+            public bool IsConfigured(out string error)
+            {
+                if (string.IsNullOrEmpty(this.FeedUrl) &&
+                    string.IsNullOrEmpty(this.PackageFeedName) &&
+                    string.IsNullOrEmpty(this.FeedUrlForCredentials))
                 {
                     error = string.Join(
-                            Environment.NewLine,
-                            "One or more required settings for NuGetUpgrader are missing.",
-                            $"Use `gvfs config [{GVFSConstants.LocalGVFSConfig.UpgradeFeedUrl} | {GVFSConstants.LocalGVFSConfig.UpgradeFeedCredentialUrl} | {GVFSConstants.LocalGVFSConfig.UpgradeFeedPackageName}] <value>` to set the config.");
+                        Environment.NewLine,
+                        "NuGet upgrade server is not configured.",
+                        $"Use `gvfs config [{GVFSConstants.LocalGVFSConfig.UpgradeFeedUrl} | {GVFSConstants.LocalGVFSConfig.UpgradeFeedCredentialUrl} | {GVFSConstants.LocalGVFSConfig.UpgradeFeedPackageName}] <value>` to set the config.");
                     return false;
                 }
 
+                error = null;
+                return true;
+            }
+
+            /// <summary>
+            /// Try to load the config for a NuGet upgrader. Returns false if there was an error reading the config.
+            /// </summary>
+            public bool TryLoad(out string error)
+            {
+                string configValue;
+                if (!this.localConfig.TryGetConfig(GVFSConstants.LocalGVFSConfig.UpgradeFeedUrl, out configValue, out error))
+                {
+                    this.tracer.RelatedError(error);
+                    return false;
+                }
+
+                this.FeedUrl = configValue;
+
+                if (!this.localConfig.TryGetConfig(GVFSConstants.LocalGVFSConfig.UpgradeFeedCredentialUrl, out configValue, out error))
+                {
+                    this.tracer.RelatedError(error);
+                    return false;
+                }
+
+                this.FeedUrlForCredentials = configValue;
+
+                if (!this.localConfig.TryGetConfig(GVFSConstants.LocalGVFSConfig.UpgradeFeedPackageName, out configValue, out error))
+                {
+                    this.tracer.RelatedError(error);
+                    return false;
+                }
+
+                this.PackageFeedName = configValue;
                 return true;
             }
         }

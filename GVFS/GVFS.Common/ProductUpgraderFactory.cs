@@ -16,10 +16,27 @@ namespace GVFS.Common
             bool dryRun = false,
             bool noVerify = false)
         {
-            newUpgrader = NuGetUpgrader.NuGetUpgrader.Create(tracer, dryRun, noVerify, out error);
-            if (newUpgrader != null)
+            // Prefer to use the NuGet upgrader if it is configured. If the NuGet upgrader is not configured,
+            // then try to use the GitHubUpgrader.
+            if (NuGetUpgrader.NuGetUpgrader.TryCreate(tracer, dryRun, noVerify, out NuGetUpgrader.NuGetUpgrader nuGetUpgrader, out bool isConfigured, out error))
             {
-               return true;
+                // We were successfully able to load a NuGetUpgrader - use that.
+                newUpgrader = nuGetUpgrader;
+                return true;
+            }
+            else
+            {
+                if (isConfigured)
+                {
+                    tracer.RelatedError($"{nameof(TryCreateUpgrader)}: Could not create upgrader. {error}");
+
+                    // We did not successfully load a NuGetUpgrader, but it is configured.
+                    newUpgrader = null;
+                    return false;
+                }
+
+                // We did not load a NuGetUpgrader, but it is not the configured upgrader.
+                // Try to load other upgraders as appropriate.
             }
 
             newUpgrader = GitHubUpgrader.Create(tracer, dryRun, noVerify, out error);

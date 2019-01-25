@@ -53,24 +53,6 @@ namespace GVFS.Common.NuGetUpgrader
             NuGetUpgraderConfig config,
             bool dryRun,
             PhysicalFileSystem fileSystem,
-            NuGetFeed nuGetFeed)
-            : this(
-                currentVersion,
-                tracer,
-                config,
-                dryRun,
-                fileSystem,
-                nuGetFeed,
-                new UpgraderUtils(tracer, fileSystem))
-        {
-        }
-
-        public NuGetUpgrader(
-            string currentVersion,
-            ITracer tracer,
-            NuGetUpgraderConfig config,
-            bool dryRun,
-            PhysicalFileSystem fileSystem,
             NuGetFeed nuGetFeed,
             UpgraderUtils localUpgraderServices)
         {
@@ -83,6 +65,24 @@ namespace GVFS.Common.NuGetUpgrader
             this.fileSystem = fileSystem;
             this.nuGetFeed = nuGetFeed;
             this.upgraderUtils = localUpgraderServices;
+        }
+
+        private NuGetUpgrader(
+            string currentVersion,
+            ITracer tracer,
+            NuGetUpgraderConfig config,
+            bool dryRun,
+            PhysicalFileSystem fileSystem,
+            NuGetFeed nuGetFeed)
+            : this(
+                  currentVersion,
+                  tracer,
+                  config,
+                  dryRun,
+                  fileSystem,
+                  nuGetFeed,
+                  new UpgraderUtils(tracer, fileSystem))
+        {
         }
 
         public string DownloadedPackagePath { get; private set; }

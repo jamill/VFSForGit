@@ -45,7 +45,7 @@ namespace GVFS.Common.NuGetUpgrader
             // - Direct download packages - do not download to global
             //   NuGet cache. This is set in  NullSourceCacheContext.Instance
             // - NoCache - Do not cache package version lists
-            this.sourceCacheContext = NullSourceCacheContext.Instance;
+            this.sourceCacheContext = NullSourceCacheContext.Instance.Clone();
             this.sourceCacheContext.NoCache = true;
 
             this.nuGetLogger = new Logger(this.tracer);
@@ -75,8 +75,8 @@ namespace GVFS.Common.NuGetUpgrader
                 PackageMetadataResource packageMetadataResource = await this.sourceRepository.GetResourceAsync<PackageMetadataResource>();
                 IEnumerable<IPackageSearchMetadata> queryResults = await packageMetadataResource.GetMetadataAsync(
                     packageId,
-                    includePrerelease: true,
-                    includeUnlisted: true,
+                    includePrerelease: false,
+                    includeUnlisted: false,
                     sourceCacheContext: this.sourceCacheContext,
                     log: this.nuGetLogger,
                     token: CancellationToken.None);
@@ -111,7 +111,11 @@ namespace GVFS.Common.NuGetUpgrader
                        logger : this.nuGetLogger,
                        token: CancellationToken.None))
             {
-                // Check download result status
+                if (downloadResourceResult.Status != DownloadResourceResultStatus.Available)
+                {
+                    throw new Exception("Download of NuGet package failed. DownloadResult Status: {downloadResourceResult.Status}");
+                }
+
                 using (FileStream fileStream = File.Create(downloadPath))
                 {
                     downloadResourceResult.PackageStream.CopyTo(fileStream);
@@ -123,7 +127,7 @@ namespace GVFS.Common.NuGetUpgrader
 
         private static PackageSourceCredential BuildCredentialsFromPAT(string personalAccessToken)
         {
-            return NuGet.Configuration.PackageSourceCredential.FromUserInput(
+            return PackageSourceCredential.FromUserInput(
                 "VfsForGitNugetUpgrader",
                 "PersonalAccessToken",
                 personalAccessToken,

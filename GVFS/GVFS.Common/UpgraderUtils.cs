@@ -38,10 +38,7 @@ namespace GVFS.Common
         {
             this.fileSystem = fileSystem;
             this.tracer = tracer;
-            this.TempPath = UpgraderUtils.GetTempPath();
         }
-
-        public string TempPath { get; }
 
         public static void TraceException(ITracer tracer, Exception exception, string method, string message)
         {
@@ -68,13 +65,6 @@ namespace GVFS.Common
                     tracer.RelatedError($"{nameof(DeleteAllInstallerDownloads)}: Could not remove directory: {ProductUpgraderInfo.GetAssetDownloadsPath()}.{ex.ToString()}");
                 }
             }
-        }
-
-        public static string GetTempPath()
-        {
-            return Path.Combine(
-                ProductUpgraderInfo.GetUpgradesDirectoryPath(),
-                "InstallerTemp");
         }
 
         // TrySetupToolsDirectory -

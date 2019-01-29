@@ -54,11 +54,11 @@ namespace GVFS.UnitTests.Common
             this.upgrader = new NuGetUpgrader(
                 CurrentVersion,
                 this.tracer,
-                this.upgraderConfig,
+                false,
                 false,
                 this.mockFileSystem.Object,
-                this.mockNuGetFeed.Object,
-                new UpgraderUtils(this.tracer, this.mockFileSystem.Object));
+                this.upgraderConfig,
+                this.mockNuGetFeed.Object);
         }
 
         [TearDown]
@@ -233,11 +233,11 @@ namespace GVFS.UnitTests.Common
             NuGetUpgrader nuGetUpgrader = new NuGetUpgrader(
                 CurrentVersion,
                 this.tracer,
-                nuGetUpgraderConfig,
+                false,
                 false,
                 this.mockFileSystem.Object,
-                this.mockNuGetFeed.Object,
-                new UpgraderUtils(this.tracer, this.mockFileSystem.Object));
+                nuGetUpgraderConfig,
+                this.mockNuGetFeed.Object);
 
             nuGetUpgrader.UpgradeAllowed(out _).ShouldBeTrue("NuGetUpgrader config is complete: upgrade should be allowed.");
 
@@ -248,11 +248,11 @@ namespace GVFS.UnitTests.Common
              nuGetUpgrader = new NuGetUpgrader(
                 CurrentVersion,
                 this.tracer,
-                nuGetUpgraderConfig,
+                false,
                 false,
                 this.mockFileSystem.Object,
-                this.mockNuGetFeed.Object,
-                new UpgraderUtils(this.tracer, this.mockFileSystem.Object));
+                nuGetUpgraderConfig,
+                this.mockNuGetFeed.Object);
 
             nuGetUpgrader.UpgradeAllowed(out string _).ShouldBeFalse("Upgrade without FeedURL configured should not be allowed.");
 
@@ -264,11 +264,11 @@ namespace GVFS.UnitTests.Common
             nuGetUpgrader = new NuGetUpgrader(
                 CurrentVersion,
                 this.tracer,
-                nuGetUpgraderConfig,
+                false,
                 false,
                 this.mockFileSystem.Object,
-                this.mockNuGetFeed.Object,
-                new UpgraderUtils(this.tracer, this.mockFileSystem.Object));
+                nuGetUpgraderConfig,
+                this.mockNuGetFeed.Object);
 
             nuGetUpgrader.UpgradeAllowed(out string _).ShouldBeFalse("Upgrade without FeedName configured should not be allowed.");
 
@@ -279,11 +279,11 @@ namespace GVFS.UnitTests.Common
             nuGetUpgrader = new NuGetUpgrader(
                 CurrentVersion,
                 this.tracer,
-                nuGetUpgraderConfig,
+                false,
                 false,
                 this.mockFileSystem.Object,
-                this.mockNuGetFeed.Object,
-                new UpgraderUtils(this.tracer, this.mockFileSystem.Object));
+                nuGetUpgraderConfig,
+                this.mockNuGetFeed.Object);
 
             nuGetUpgrader.UpgradeAllowed(out string _).ShouldBeFalse("Upgrade without FeedUrlForCredentials configured should not be allowed.");
         }

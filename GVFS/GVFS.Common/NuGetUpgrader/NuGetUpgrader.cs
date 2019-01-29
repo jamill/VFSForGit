@@ -10,17 +10,13 @@ using System.Threading;
 
 namespace GVFS.Common.NuGetUpgrader
 {
-    public class NuGetUpgrader : IProductUpgrader
+    public class NuGetUpgrader : ProductUpgrader
     {
         private const string ContentDirectoryName = "content";
         private const string InstallManifestFileName = "install-manifest.json";
         private const string ExtractedInstallerDirectoryName = "InstallerTemp";
-        private readonly bool dryRun;
-        private readonly PhysicalFileSystem fileSystem;
         private readonly Version installedVersion;
-        private readonly UpgraderUtils upgraderUtils;
         private readonly NuGetUpgraderConfig nuGetUpgraderConfig;
-        private readonly ITracer tracer;
 
         private ReleaseManifest releaseManifest;
         private IPackageSearchMetadata highestVersionAvailable;
@@ -29,16 +25,18 @@ namespace GVFS.Common.NuGetUpgrader
         public NuGetUpgrader(
             string currentVersion,
             ITracer tracer,
-            NuGetUpgraderConfig config,
             bool dryRun,
+            bool noVerify,
+            NuGetUpgraderConfig config,
             string downloadFolder,
             string personalAccessToken)
             : this(
                 currentVersion,
                 tracer,
-                config,
                 dryRun,
+                noVerify,
                 new PhysicalFileSystem(),
+                config,
                 new NuGetFeed(
                     config.FeedUrl,
                     config.PackageFeedName,
@@ -51,43 +49,26 @@ namespace GVFS.Common.NuGetUpgrader
         public NuGetUpgrader(
             string currentVersion,
             ITracer tracer,
-            NuGetUpgraderConfig config,
             bool dryRun,
+            bool noVerify,
             PhysicalFileSystem fileSystem,
-            NuGetFeed nuGetFeed,
-            UpgraderUtils localUpgraderServices)
+            NuGetUpgraderConfig config,
+            NuGetFeed nuGetFeed)
+        : base(
+            currentVersion,
+            tracer,
+            dryRun,
+            noVerify)
         {
-            this.dryRun = dryRun;
             this.nuGetUpgraderConfig = config;
-            this.tracer = tracer;
             this.installedVersion = new Version(currentVersion);
             this.InstallationId = DateTime.Now.ToString("yyyyMMdd_HHmmss");
 
-            this.fileSystem = fileSystem;
             this.nuGetFeed = nuGetFeed;
-            this.upgraderUtils = localUpgraderServices;
 
             this.ExtractedInstallerPath = Path.Combine(
-                ProductUpgraderInfo.GetUpgradesDirectoryPath(),
+                 ProductUpgraderInfo.GetUpgradesDirectoryPath(),
                 ExtractedInstallerDirectoryName);
-        }
-
-        private NuGetUpgrader(
-            string currentVersion,
-            ITracer tracer,
-            NuGetUpgraderConfig config,
-            bool dryRun,
-            PhysicalFileSystem fileSystem,
-            NuGetFeed nuGetFeed)
-            : this(
-                  currentVersion,
-                  tracer,
-                  config,
-                  dryRun,
-                  fileSystem,
-                  nuGetFeed,
-                  new UpgraderUtils(tracer, fileSystem))
-        {
         }
 
         public string DownloadedPackagePath { get; private set; }
@@ -155,8 +136,9 @@ namespace GVFS.Common.NuGetUpgrader
             nuGetUpgrader = new NuGetUpgrader(
                 ProcessHelper.GetCurrentProcessVersion(),
                 tracer,
-                upgraderConfig,
                 dryRun,
+                noVerify,
+                upgraderConfig,
                 ProductUpgraderInfo.GetAssetDownloadsPath(),
                 token);
 
@@ -178,13 +160,14 @@ namespace GVFS.Common.NuGetUpgrader
             return dst;
         }
 
-        public void Dispose()
+        public override void Dispose()
         {
             this.nuGetFeed?.Dispose();
             this.nuGetFeed = null;
+            base.Dispose();
         }
 
-        public bool UpgradeAllowed(out string message)
+        public override bool UpgradeAllowed(out string message)
         {
             if (string.IsNullOrEmpty(this.nuGetUpgraderConfig.FeedUrl))
             {
@@ -206,7 +189,7 @@ namespace GVFS.Common.NuGetUpgrader
             return true;
         }
 
-        public bool TryQueryNewestVersion(out Version newVersion, out string errorMessage)
+        public override bool TryQueryNewestVersion(out Version newVersion, out string errorMessage)
         {
             try
             {
@@ -250,8 +233,7 @@ namespace GVFS.Common.NuGetUpgrader
             }
             catch (Exception ex)
             {
-                UpgraderUtils.TraceException(
-                    this.tracer,
+                this.TraceException(
                     ex,
                     nameof(this.TryQueryNewestVersion),
                     "Exception encountered querying for newest version of upgrade package.");
@@ -262,7 +244,7 @@ namespace GVFS.Common.NuGetUpgrader
             return false;
         }
 
-        public bool TryDownloadNewestVersion(out string errorMessage)
+        public override bool TryDownloadNewestVersion(out string errorMessage)
         {
             if (this.highestVersionAvailable == null)
             {
@@ -283,7 +265,7 @@ namespace GVFS.Common.NuGetUpgrader
                 }
                 catch (Exception ex)
                 {
-                    UpgraderUtils.TraceException(
+                    this.TraceException(
                         activity,
                         ex,
                         nameof(this.TryDownloadNewestVersion),
@@ -297,7 +279,7 @@ namespace GVFS.Common.NuGetUpgrader
             return true;
         }
 
-        public bool TryCleanup(out string error)
+        public override bool TryCleanup(out string error)
         {
             error = null;
             Exception e;
@@ -306,8 +288,7 @@ namespace GVFS.Common.NuGetUpgrader
             if (!success)
             {
                 error = e?.Message;
-                UpgraderUtils.TraceException(
-                    this.tracer,
+                this.TraceException(
                     e,
                     nameof(this.TryDownloadNewestVersion),
                     "Exception encountered cleaning up downloaded upgrade package.");
@@ -316,7 +297,7 @@ namespace GVFS.Common.NuGetUpgrader
             return success;
         }
 
-        public bool TryRunInstaller(InstallActionWrapper installActionWrapper, out string error)
+        public override bool TryRunInstaller(InstallActionWrapper installActionWrapper, out string error)
         {
             string localError = null;
             int installerExitCode;
@@ -330,8 +311,7 @@ namespace GVFS.Common.NuGetUpgrader
                     Exception e;
                     if (!this.fileSystem.TryDeleteDirectory(this.ExtractedInstallerPath, out e))
                     {
-                        UpgraderUtils.TraceException(
-                            this.tracer,
+                        this.TraceException(
                             e,
                             nameof(this.TryRunInstaller),
                             "Exception encountered trying to delete download directory in preperation for download.");
@@ -378,7 +358,7 @@ namespace GVFS.Common.NuGetUpgrader
                             {
                                 if (!this.dryRun)
                                 {
-                                    this.upgraderUtils.RunInstaller(installerPath, processedArgs, out installerExitCode, out localError);
+                                    this.RunInstaller(installerPath, processedArgs, out installerExitCode, out localError);
                                 }
                                 else
                                 {
@@ -427,11 +407,6 @@ namespace GVFS.Common.NuGetUpgrader
                     return true;
                 }
             }
-        }
-
-        public bool TrySetupToolsDirectory(out string upgraderToolPath, out string error)
-        {
-            return this.upgraderUtils.TrySetupToolsDirectory(out upgraderToolPath, out error);
         }
 
         private static bool TryGetPersonalAccessToken(string gitBinaryPath, string credentialUrl, ITracer tracer, out string token, out string error)

@@ -129,13 +129,20 @@ namespace GVFS.Common.NuGetUpgrader
             return downloadPath;
         }
 
-        public virtual bool VerifyPackage(string packagePath)
+        public virtual bool VerifyPackage(string packagePath, string otherCertificateFingerprintToTrust)
         {
+            List<string> certificateFingerprints = new List<string>();
+            certificateFingerprints.Add("3F9001EA83C560D712C24CF213C3D312CB3BFF51EE89435D3430BD06B5D0EECE");
+            if (otherCertificateFingerprintToTrust != null)
+            {
+                certificateFingerprints.Add(otherCertificateFingerprintToTrust);
+            }
+
             VerifyArgs verifyArgs = new VerifyArgs()
             {
                 Verifications = new VerifyArgs.Verification[] { VerifyArgs.Verification.All },
                 PackagePath = packagePath,
-                CertificateFingerprint = new List<string>() { "3F9001EA83C560D712C24CF213C3D312CB3BFF51EE89435D3430BD06B5D0EECE" },
+                CertificateFingerprint = certificateFingerprints,
                 Logger = this.nuGetLogger
             };
 

@@ -274,6 +274,17 @@ namespace GVFS.Common.NuGetUpgrader
                 }
             }
 
+            if (!this.noVerify)
+            {
+                if (!this.nuGetFeed.VerifyPackage(this.DownloadedPackagePath))
+                {
+                    errorMessage = "Package signature validation failed. Check the upgrade logs for more details.";
+                    this.tracer.RelatedError(errorMessage);
+                    this.fileSystem.DeleteFile(this.DownloadedPackagePath);
+                    return false;
+                }
+            }
+
             errorMessage = null;
             return true;
         }
@@ -324,6 +335,17 @@ namespace GVFS.Common.NuGetUpgrader
 
                         error = e?.Message ?? "Failed to delete directory, but no error was specified.";
                         return false;
+                    }
+
+                    if (!this.noVerify)
+                    {
+                        if (!this.nuGetFeed.VerifyPackage(this.DownloadedPackagePath))
+                        {
+                            error = "Package signature validation failed. Check the upgrade logs for more details.";
+                            activity.RelatedError(error);
+                            this.fileSystem.DeleteFile(this.DownloadedPackagePath);
+                            return false;
+                        }
                     }
 
                     string extractedPackagePath = this.UnzipPackageToTempLocation();

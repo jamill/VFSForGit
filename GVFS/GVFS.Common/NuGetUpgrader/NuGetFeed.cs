@@ -1,4 +1,5 @@
 using GVFS.Common.Tracing;
+using NuGet.Commands;
 using NuGet.Common;
 using NuGet.Configuration;
 using NuGet.Packaging.Core;
@@ -128,6 +129,21 @@ namespace GVFS.Common.NuGetUpgrader
             return downloadPath;
         }
 
+        public virtual bool VerifyPackage(string packagePath)
+        {
+            VerifyArgs verifyArgs = new VerifyArgs()
+            {
+                Verifications = new VerifyArgs.Verification[] { VerifyArgs.Verification.All },
+                PackagePath = packagePath,
+                CertificateFingerprint = new List<string>() { "3F9001EA83C560D712C24CF213C3D312CB3BFF51EE89435D3430BD06B5D0EECE" },
+                Logger = this.nuGetLogger
+            };
+
+            VerifyCommandRunner verifyCommandRunner = new VerifyCommandRunner();
+            int result = verifyCommandRunner.ExecuteCommandAsync(verifyArgs).Result;
+            return result == 0;
+        }
+
         protected static EventMetadata CreateEventMetadata(Exception e = null)
         {
             EventMetadata metadata = new EventMetadata();
@@ -153,7 +169,7 @@ namespace GVFS.Common.NuGetUpgrader
         /// Implementation of logger used by NuGet library. It takes all output
         /// and redirects it to the GVFS logger.
         /// </summary>
-        private class Logger : ILogger
+        public class Logger : ILogger
         {
             private ITracer tracer;
 
@@ -177,7 +193,7 @@ namespace GVFS.Common.NuGetUpgrader
                      this.tracer.RelatedWarning(message);
                     break;
                 case LogLevel.Error:
-                    this.tracer.RelatedError(message);
+                    this.tracer.RelatedWarning(message);
                     break;
                 default:
                     this.tracer.RelatedWarning(message);

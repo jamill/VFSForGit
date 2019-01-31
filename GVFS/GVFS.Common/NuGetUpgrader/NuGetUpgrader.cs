@@ -276,7 +276,7 @@ namespace GVFS.Common.NuGetUpgrader
 
             if (!this.noVerify)
             {
-                if (!this.nuGetFeed.VerifyPackage(this.DownloadedPackagePath))
+                if (!this.nuGetFeed.VerifyPackage(this.DownloadedPackagePath, this.nuGetUpgraderConfig.CertificateFingerprint))
                 {
                     errorMessage = "Package signature validation failed. Check the upgrade logs for more details.";
                     this.tracer.RelatedError(errorMessage);
@@ -339,7 +339,7 @@ namespace GVFS.Common.NuGetUpgrader
 
                     if (!this.noVerify)
                     {
-                        if (!this.nuGetFeed.VerifyPackage(this.DownloadedPackagePath))
+                        if (!this.nuGetFeed.VerifyPackage(this.DownloadedPackagePath, this.nuGetUpgraderConfig.CertificateFingerprint))
                         {
                             error = "Package signature validation failed. Check the upgrade logs for more details.";
                             activity.RelatedError(error);
@@ -482,6 +482,7 @@ namespace GVFS.Common.NuGetUpgrader
             public string FeedUrl { get; private set; }
             public string PackageFeedName { get; private set; }
             public string FeedUrlForCredentials { get; private set; }
+            public string CertificateFingerprint { get; private set; }
 
             /// <summary>
             /// Check if the NuGetUpgrader is ready for use. A
@@ -554,6 +555,16 @@ namespace GVFS.Common.NuGetUpgrader
                 }
 
                 this.PackageFeedName = configValue;
+
+                if (!this.localConfig.TryGetConfig("upgrade.certificatefingerprint", out configValue, out error))
+                {
+                    // This is option (and only for testing purposes)
+                    this.tracer.RelatedWarning(error);
+                    error = null;
+                }
+
+                this.CertificateFingerprint = configValue;
+
                 return true;
             }
         }

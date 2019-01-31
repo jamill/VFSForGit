@@ -171,6 +171,7 @@ namespace GVFS.UnitTests.Common
             string downloadPath = "c:\\test_download_path";
             this.mockNuGetFeed.Setup(foo => foo.QueryFeedAsync(NuGetFeedName)).ReturnsAsync(availablePackages);
             this.mockNuGetFeed.Setup(foo => foo.DownloadPackageAsync(It.Is<PackageIdentity>(packageIdentity => packageIdentity == newestAvailableVersion.Identity))).ReturnsAsync(downloadPath);
+            this.mockNuGetFeed.Setup(foo => foo.VerifyPackage(It.IsAny<string>(), It.IsAny<string>())).Returns(true);
 
             bool success = this.upgrader.TryQueryNewestVersion(out actualNewestVersion, out message);
 
@@ -197,6 +198,7 @@ namespace GVFS.UnitTests.Common
 
             this.mockNuGetFeed.Setup(foo => foo.QueryFeedAsync(It.IsAny<string>())).ReturnsAsync(availablePackages);
             this.mockNuGetFeed.Setup(foo => foo.DownloadPackageAsync(It.IsAny<PackageIdentity>())).Throws(new Exception("Network Error"));
+            this.mockNuGetFeed.Setup(foo => foo.VerifyPackage(It.IsAny<string>(), It.IsAny<string>())).Returns(true);
 
             bool success = this.upgrader.TryQueryNewestVersion(out newVersion, out message);
 

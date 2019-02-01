@@ -4,12 +4,14 @@ using GVFS.Common.NuGetUpgrader;
 using GVFS.Tests.Should;
 using GVFS.UnitTests.Category;
 using GVFS.UnitTests.Mock.Common;
+using GVFS.UnitTests.Mock.FileSystem;
 using Moq;
 using NuGet.Packaging.Core;
 using NuGet.Protocol.Core.Types;
 using NUnit.Framework;
 using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
 
 namespace GVFS.UnitTests.Common
@@ -29,33 +31,33 @@ namespace GVFS.UnitTests.Common
         private MockTracer tracer;
 
         private NuGetUpgrader.NuGetUpgraderConfig upgraderConfig;
-        private string downloadFolder;
 
         private Mock<NuGetFeed> mockNuGetFeed;
-        private Mock<PhysicalFileSystem> mockFileSystem;
+        private MockFileSystem mockFileSystem;
+
+        private string downloadDirectoryPath = @"mock:\downloadFolderTestValue";
 
         [SetUp]
         public void SetUp()
         {
             this.upgraderConfig = new NuGetUpgrader.NuGetUpgraderConfig(this.tracer, null, NuGetFeedUrl, NuGetFeedName);
-            this.downloadFolder = "downloadFolderTestValue";
 
             this.tracer = new MockTracer();
 
             this.mockNuGetFeed = new Mock<NuGetFeed>(
                 NuGetFeedUrl,
                 NuGetFeedName,
-                this.downloadFolder,
+                this.downloadDirectoryPath,
                 null,
                 this.tracer);
-            this.mockFileSystem = new Mock<PhysicalFileSystem>();
+            this.mockFileSystem = new MockFileSystem(new MockDirectory(this.downloadDirectoryPath, null, null));
 
             this.upgrader = new NuGetUpgrader(
                 CurrentVersion,
                 this.tracer,
                 false,
                 false,
-                this.mockFileSystem.Object,
+                this.mockFileSystem,
                 this.upgraderConfig,
                 this.mockNuGetFeed.Object);
         }
@@ -166,11 +168,10 @@ namespace GVFS.UnitTests.Common
                 this.GeneratePackageSeachMetadata(new Version(NewerVersion)),
             };
 
+            string testDownloadPath = Path.Combine(this.downloadDirectoryPath, "testNuget.zip");
             IPackageSearchMetadata newestAvailableVersion = availablePackages.Last();
-
-            string downloadPath = "c:\\test_download_path";
             this.mockNuGetFeed.Setup(foo => foo.QueryFeedAsync(NuGetFeedName)).ReturnsAsync(availablePackages);
-            this.mockNuGetFeed.Setup(foo => foo.DownloadPackageAsync(It.Is<PackageIdentity>(packageIdentity => packageIdentity == newestAvailableVersion.Identity))).ReturnsAsync(downloadPath);
+            this.mockNuGetFeed.Setup(foo => foo.DownloadPackageAsync(It.Is<PackageIdentity>(packageIdentity => packageIdentity == newestAvailableVersion.Identity))).ReturnsAsync(testDownloadPath);
 
             bool success = this.upgrader.TryQueryNewestVersion(out actualNewestVersion, out message);
 
@@ -180,7 +181,7 @@ namespace GVFS.UnitTests.Common
 
             bool downloadSuccessful = this.upgrader.TryDownloadNewestVersion(out message);
             downloadSuccessful.ShouldBeTrue();
-            this.upgrader.DownloadedPackagePath.ShouldEqual(downloadPath);
+            this.upgrader.DownloadedPackagePath.ShouldEqual(testDownloadPath);
         }
 
         [TestCase]
@@ -239,7 +240,7 @@ namespace GVFS.UnitTests.Common
                 this.tracer,
                 false,
                 false,
-                this.mockFileSystem.Object,
+                this.mockFileSystem,
                 nuGetUpgraderConfig,
                 this.mockNuGetFeed.Object);
 
@@ -254,7 +255,7 @@ namespace GVFS.UnitTests.Common
                 this.tracer,
                 false,
                 false,
-                this.mockFileSystem.Object,
+                this.mockFileSystem,
                 nuGetUpgraderConfig,
                 this.mockNuGetFeed.Object);
 
@@ -270,7 +271,7 @@ namespace GVFS.UnitTests.Common
                 this.tracer,
                 false,
                 false,
-                this.mockFileSystem.Object,
+                this.mockFileSystem,
                 nuGetUpgraderConfig,
                 this.mockNuGetFeed.Object);
 

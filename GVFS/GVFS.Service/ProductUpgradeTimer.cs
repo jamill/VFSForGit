@@ -57,63 +57,51 @@ namespace GVFS.Service
         {
             string errorMessage = null;
             InstallerPreRunChecker prerunChecker = new InstallerPreRunChecker(this.tracer, string.Empty);
-            ProductUpgrader productUpgrader;
             bool deleteExistingDownloads = true;
 
-            if (ProductUpgrader.TryCreateUpgrader(out productUpgrader, this.tracer, out errorMessage))
+            try
             {
-                if (prerunChecker.TryRunPreUpgradeChecks(out string _) && this.TryDownloadUpgrade(productUpgrader, out errorMessage))
+                // The upgrade check always goes against GitHub
+                productUpgrader productUpgrader = GitHubUpgrader.Create(tracer,
+                                                                        dryRun: false,
+                                                                        noVerify: false,
+                                                                        out error);
+                if (productUpgrader != null)
                 {
-                    deleteExistingDownloads = false;
+                    if (prerunChecker.TryRunPreUpgradeChecks(out _) &&
+                        this.TryQueryForNewerVersion(productUpgrader,
+                                                     out string newerVersion,
+                                                     out errorMessage))
+                    {
+                        ProductUpgraderInfo.RecordHighestAvailableVersion(newerVersion);
+                    }
                 }
+            }
+            catch (IOException ex)
+            {
+                this.tracer.RelatedError(ex.Message);
+                errorMessage = ex.Message;
             }
 
             if (errorMessage != null)
             {
                 this.tracer.RelatedError(errorMessage);
             }
-
-            if (deleteExistingDownloads)
-            {
-                ProductUpgrader.DeleteAllInstallerDownloads();
-            }
         }
 
-        private bool TryDownloadUpgrade(ProductUpgrader productUpgrader, out string errorMessage)
+        private bool TryDownloadUpgrade(ProductUpgrader productUpgrader, out string newVersion, out string errorMessage)
         {
             using (ITracer activity = this.tracer.StartActivity("Checking for product upgrades.", EventLevel.Informational))
             {
-                Version newerVersion = null;
                 string detailedError = null;
                 if (!productUpgrader.UpgradeAllowed(out errorMessage))
                 {
                     return false;
                 }
 
-                if (!productUpgrader.TryQueryNewestVersion(out newerVersion, out detailedError))
+                if (!productUpgrader.TryQueryNewestVersion(out newVersion, out detailedError))
                 {
                     errorMessage = "Could not fetch new version info. " + detailedError;
-                    return false;
-                }
-
-                if (newerVersion == null)
-                {
-                    // Already up-to-date
-                    // Make sure there a no asset installers remaining in the Downloads directory. This can happen if user
-                    // upgraded by manually downloading and running asset installers.
-                    ProductUpgrader.DeleteAllInstallerDownloads();
-                    errorMessage = null;
-                    return true;
-                }
-
-                if (productUpgrader.TryDownloadNewestVersion(out detailedError))
-                {
-                    errorMessage = null;
-                    return true;
-                }
-                else
-                {
-                    errorMessage = "Could not download product upgrade. " + detailedError;
                     return false;
                 }
             }

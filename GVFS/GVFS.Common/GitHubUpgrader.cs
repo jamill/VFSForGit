@@ -40,10 +40,11 @@ namespace GVFS.Common
         public GitHubUpgrader(
             string currentVersion,
             ITracer tracer,
+            PhysicalFileSystem fileSystem,
             GitHubUpgraderConfig upgraderConfig,
             bool dryRun = false,
             bool noVerify = false)
-            : base(currentVersion, tracer, dryRun, noVerify, new PhysicalFileSystem())
+            : base(currentVersion, tracer, dryRun, noVerify, fileSystem)
         {
             this.Config = upgraderConfig;
 
@@ -53,12 +54,18 @@ namespace GVFS.Common
 
         public GitHubUpgraderConfig Config { get; private set; }
 
-        public static GitHubUpgrader Create(ITracer tracer, bool dryRun, bool noVerify, out string error)
+        public static GitHubUpgrader Create(ITracer tracer, PhysicalFileSystem fileSystem, bool dryRun, bool noVerify, out string error)
         {
-            return Create(new LocalGVFSConfig(), tracer, dryRun, noVerify, out error);
+            return Create(new LocalGVFSConfig(), tracer, fileSystem, dryRun, noVerify, out error);
         }
 
-        public static GitHubUpgrader Create(LocalGVFSConfig localConfig, ITracer tracer, bool dryRun, bool noVerify, out string error)
+        public static GitHubUpgrader Create(
+            LocalGVFSConfig localConfig,
+            ITracer tracer,
+            PhysicalFileSystem fileSystem,
+            bool dryRun,
+            bool noVerify,
+            out string error)
         {
             GitHubUpgrader upgrader = null;
             GitHubUpgraderConfig gitHubUpgraderConfig = new GitHubUpgraderConfig(tracer, localConfig);
@@ -77,6 +84,7 @@ namespace GVFS.Common
             upgrader = new GitHubUpgrader(
                     ProcessHelper.GetCurrentProcessVersion(),
                     tracer,
+                    fileSystem,
                     gitHubUpgraderConfig,
                     dryRun,
                     noVerify);

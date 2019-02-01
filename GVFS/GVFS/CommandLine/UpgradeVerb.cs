@@ -18,6 +18,7 @@ namespace GVFS.CommandLine
         private const string ConfirmOption = "--confirm";
 
         private ITracer tracer;
+        private PhysicalFileSystem fileSystem;
         private ProductUpgrader upgrader;
         private InstallerPreRunChecker prerunChecker;
         private ProcessLauncher processLauncher;
@@ -31,6 +32,7 @@ namespace GVFS.CommandLine
         {
             this.upgrader = upgrader;
             this.tracer = tracer;
+            this.fileSystem = new PhysicalFileSystem();
             this.prerunChecker = prerunChecker;
             this.processLauncher = processWrapper;
             this.Output = output;
@@ -100,7 +102,7 @@ namespace GVFS.CommandLine
                     this.prerunChecker = new InstallerPreRunChecker(this.tracer, this.Confirmed ? GVFSConstants.UpgradeVerbMessages.GVFSUpgradeConfirm : GVFSConstants.UpgradeVerbMessages.GVFSUpgrade);
 
                     ProductUpgrader upgrader;
-                    if (ProductUpgrader.TryCreateUpgrader(out upgrader, this.tracer, out error, this.DryRun, this.NoVerify))
+                    if (ProductUpgrader.TryCreateUpgrader(out upgrader, this.tracer, this.fileSystem, out error, this.DryRun, this.NoVerify))
                     {
                         this.upgrader = upgrader;
                     }
@@ -137,10 +139,7 @@ namespace GVFS.CommandLine
 
             if (!this.upgrader.UpgradeAllowed(out message))
             {
-                ProductUpgraderInfo productUpgraderInfo = new ProductUpgraderInfo(
-                    this.tracer,
-                    new PhysicalFileSystem());
-                productUpgraderInfo.DeleteAllInstallerDownloads();
+                this.upgrader.DeleteAllInstallerDownloads();
                 this.ReportInfoToConsole(message);
                 return true;
             }
@@ -156,10 +155,7 @@ namespace GVFS.CommandLine
             {
                 // Make sure there a no asset installers remaining in the Downloads directory. This can happen if user
                 // upgraded by manually downloading and running asset installers.
-                ProductUpgraderInfo productUpgraderInfo = new ProductUpgraderInfo(
-                    this.tracer,
-                    new PhysicalFileSystem());
-                productUpgraderInfo.DeleteAllInstallerDownloads();
+n                this.upgrader.DeleteAllInstallerDownloads();
                 this.ReportInfoToConsole(message);
                 return true;
             }

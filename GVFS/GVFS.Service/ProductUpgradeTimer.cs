@@ -12,6 +12,7 @@ namespace GVFS.Service
     {
         private static readonly TimeSpan TimeInterval = TimeSpan.FromDays(1);
         private JsonTracer tracer;
+        private PhysicalFileSystem fileSystem;
         private Timer timer;
         private PhysicalFileSystem fileSystem;
 

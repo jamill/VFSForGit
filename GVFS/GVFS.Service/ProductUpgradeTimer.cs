@@ -141,6 +141,9 @@ namespace GVFS.Service
                         "Unhanlded exception encountered recording highest available version");
                     Environment.Exit((int)ReturnCode.GenericError);
                 }
+
+                errorMessage = null;
+                return true;
             }
         }
 

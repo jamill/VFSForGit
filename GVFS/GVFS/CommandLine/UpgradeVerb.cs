@@ -139,7 +139,7 @@ namespace GVFS.CommandLine
 
             if (!this.upgrader.UpgradeAllowed(out message))
             {
-                this.upgrader.DeleteAllInstallerDownloads(this.tracer);
+                this.upgrader.DeleteAllInstallerDownloads();
                 this.ReportInfoToConsole(message);
                 return true;
             }

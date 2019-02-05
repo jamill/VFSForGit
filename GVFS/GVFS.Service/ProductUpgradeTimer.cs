@@ -12,10 +12,12 @@ namespace GVFS.Service
         private static readonly TimeSpan TimeInterval = TimeSpan.FromDays(1);
         private JsonTracer tracer;
         private Timer timer;
+        private PhysicalFileSystem fileSystem;
 
         public ProductUpgradeTimer(JsonTracer tracer)
         {
             this.tracer = tracer;
+            this.fileSystem = new PhysicalFileSystem();
         }
 
         public void Start()
@@ -107,8 +109,10 @@ namespace GVFS.Service
                         this.tracer.RelatedError(errorMessage);
                         return;
                     }
-
-                    ProductUpgraderInfo.RecordHighestAvailableVersion(newerVersion);
+                    ProductUpgraderInfo info = new ProductUpgraderInfo(
+                        this.tracer,
+                        this.fileSystem);
+                    info.RecordHighestAvailableVersion(newerVersion);
                 }
                 catch (Exception ex) when (
                     ex is IOException ||

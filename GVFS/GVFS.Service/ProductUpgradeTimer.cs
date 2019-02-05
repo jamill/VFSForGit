@@ -22,7 +22,7 @@ namespace GVFS.Service
         {
             if (!GVFSEnlistment.IsUnattended(this.tracer))
             {
-                TimeSpan startTime = TimeSpan.FromMinutes(1);
+                TimeSpan startTime = TimeSpan.Zero;
 
                 this.tracer.RelatedInfo("Starting auto upgrade checks.");
                 this.timer = new Timer(
@@ -74,33 +74,27 @@ namespace GVFS.Service
                     // The upgrade check always goes against GitHub
                     GitHubUpgrader productUpgrader = GitHubUpgrader.Create(
                         this.tracer,
-                        false,
-                        false,
+                        dryRun: false,
+                        noVerify: false,
                         out errorMessage);
 
                     if (productUpgrader == null)
                     {
-                        if (errorMessage != null)
-                        {
-                            this.tracer.RelatedError(errorMessage);
-                        }
-
+                        activity.RelatedWarning(errorMessage);
                         return;
                     }
 
                     InstallerPreRunChecker prerunChecker = new InstallerPreRunChecker(this.tracer, string.Empty);
-                    if (!prerunChecker.TryRunPreUpgradeChecks(out _))
+                    if (!prerunChecker.TryRunPreUpgradeChecks(out errorMessage))
                     {
+                        activity.RelatedWarning("{0}.{1}: PreUpgradeChecks failed with: {2}", nameof(ProductUpgradeTimer), nameof(TimerCallback), errorMessage)
                         return;
                     }
 
                     if (!productUpgrader.UpgradeAllowed(out errorMessage))
                     {
-                        if (errorMessage != null)
-                        {
-                            this.tracer.RelatedError(errorMessage);
-                        }
-
+                        errorMessage = errorMessage ?? $"{nameof(ProductUpgradeTimer)}.{nameof(TimerCallback)}: Upgrade is not allowed, but no reason provided.";
+                        this.tracer.RelatedWarning(errorMessage);
                         return;
                     }
 
@@ -110,11 +104,7 @@ namespace GVFS.Service
                             out Version newerVersion,
                             out errorMessage))
                     {
-                        if (errorMessage != null)
-                        {
-                            this.tracer.RelatedError(errorMessage);
-                        }
-
+                        this.tracer.RelatedError(errorMessage);
                         return;
                     }
 
@@ -125,9 +115,12 @@ namespace GVFS.Service
                     ex is UnauthorizedAccessException ||
                     ex is NotSupportedException)
                 {
-                    this.tracer.RelatedError(
+                    this.tracer.RelatedWarning(
                         CreateEventMetadata(ex),
                         "Exception encountered recording highest available version");
+                }
+                catch (Exception ex) when (this.TraceException(ex))
+                {
                 }
             }
         }
@@ -143,10 +136,16 @@ namespace GVFS.Service
                 return false;
             }
 
-            string logMessage = newVersion is null ? "No newer versions available." : $"Newer version available: {newVersion}.";
+            string logMessage = newVersion == null ? "No newer versions available." : $"Newer version available: {newVersion}.";
             tracer.RelatedInfo(logMessage);
 
             return true;
+        }
+
+        private bool TraceException(Exception ex)
+        {
+            EventMetadata metadata = this.CreateEventMetadata(ex);
+            this.tracer.RelatedError(metadata, message);            
         }
     }
 }

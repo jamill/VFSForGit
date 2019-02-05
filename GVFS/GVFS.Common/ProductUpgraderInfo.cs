@@ -18,14 +18,7 @@ namespace GVFS.Common
         {
             try
             {
-                Version highestAvailableVersion = ReadHighestRecordedAvailableVersion();
-                if (highestAvailableVersion == null)
-                {
-                    return false;
-                }
-
-                Version currentVersion = new Version(CurrentGVFSVersion());
-                return highestAvailableVersion > currentVersion;
+                return File.Exists(GetHighestAvailableVersionFilePath());
             }
             catch (Exception ex) when (
                 ex is IOException ||
@@ -128,27 +121,6 @@ namespace GVFS.Common
             }
 
             directory.Delete();
-        }
-
-        private static Version ReadHighestRecordedAvailableVersion()
-        {
-            Version highestAvailableVersion = null;
-            string highestAvailableVersionFile = GetHighestAvailableVersionFilePath();
-
-            if (!File.Exists(highestAvailableVersionFile))
-            {
-                return null;
-            }
-
-            string contents = File.ReadAllText(highestAvailableVersionFile).Trim();
-
-            if (string.IsNullOrEmpty(contents) ||
-                !Version.TryParse(contents, out highestAvailableVersion))
-            {
-                return null;
-            }
-
-            return highestAvailableVersion;
         }
 
         private static EventMetadata CreateEventMetadata(Exception e)

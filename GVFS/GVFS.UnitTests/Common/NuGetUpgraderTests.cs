@@ -182,6 +182,7 @@ namespace GVFS.UnitTests.Common
             bool downloadSuccessful = this.upgrader.TryDownloadNewestVersion(out message);
             downloadSuccessful.ShouldBeTrue();
             this.upgrader.DownloadedPackagePath.ShouldEqual(downloadPath);
+            this.mockNuGetFeed.Verify(nuGetFeed => nuGetFeed.VerifyPackage(It.IsAny<string>(), It.IsAny<string>()), Times.Once());
         }
 
         [TestCase]
@@ -313,6 +314,72 @@ namespace GVFS.UnitTests.Common
                 azureDevOpsUrl.ShouldBeNull();
                 error.ShouldNotBeNull();
             }
+        }
+
+        [TestCase]
+        public void DownloadFailsOnNuGetPackageVerificationFailure()
+        {
+            Version actualNewestVersion;
+            string message;
+            List<IPackageSearchMetadata> availablePackages = new List<IPackageSearchMetadata>()
+            {
+                this.GeneratePackageSeachMetadata(new Version(CurrentVersion)),
+                this.GeneratePackageSeachMetadata(new Version(NewerVersion)),
+            };
+
+            IPackageSearchMetadata newestAvailableVersion = availablePackages.Last();
+
+            string downloadPath = "c:\\test_download_path";
+            this.mockNuGetFeed.Setup(foo => foo.QueryFeedAsync(NuGetFeedName)).ReturnsAsync(availablePackages);
+            this.mockNuGetFeed.Setup(foo => foo.DownloadPackageAsync(It.Is<PackageIdentity>(packageIdentity => packageIdentity == newestAvailableVersion.Identity))).ReturnsAsync(downloadPath);
+            this.mockNuGetFeed.Setup(foo => foo.VerifyPackage(It.IsAny<string>(), It.IsAny<string>())).Returns(false);
+
+            bool success = this.upgrader.TryQueryNewestVersion(out actualNewestVersion, out message);
+            success.ShouldBeTrue($"Expecting TryQueryNewestVersion to have completed sucessfully. Error: {message}");
+            actualNewestVersion.ShouldEqual(newestAvailableVersion.Identity.Version.Version, "Actual new version does not match expected new version.");
+
+            bool downloadSuccessful = this.upgrader.TryDownloadNewestVersion(out message);
+            this.mockNuGetFeed.Verify(nuGetFeed => nuGetFeed.VerifyPackage(this.upgrader.DownloadedPackagePath, It.IsAny<string>()), Times.Once());
+            downloadSuccessful.ShouldBeFalse("Failure to verify NuGet package should cause download to fail.");
+        }
+
+        [TestCase]
+        public void DoNotVerifyNuGetPackageWhenNoVerifyIsSpecified()
+        {
+            NuGetUpgrader.NuGetUpgraderConfig nuGetUpgraderConfig =
+                new NuGetUpgrader.NuGetUpgraderConfig(this.tracer, null, NuGetFeedUrl, NuGetFeedName);
+
+            NuGetUpgrader nuGetUpgrader = new NuGetUpgrader(
+                CurrentVersion,
+                this.tracer,
+                false,
+                true,
+                this.mockFileSystem.Object,
+                nuGetUpgraderConfig,
+                this.mockNuGetFeed.Object);
+
+            Version actualNewestVersion;
+            string message;
+            List<IPackageSearchMetadata> availablePackages = new List<IPackageSearchMetadata>()
+            {
+                this.GeneratePackageSeachMetadata(new Version(CurrentVersion)),
+                this.GeneratePackageSeachMetadata(new Version(NewerVersion)),
+            };
+
+            IPackageSearchMetadata newestAvailableVersion = availablePackages.Last();
+
+            string downloadPath = "c:\\test_download_path";
+            this.mockNuGetFeed.Setup(foo => foo.QueryFeedAsync(NuGetFeedName)).ReturnsAsync(availablePackages);
+            this.mockNuGetFeed.Setup(foo => foo.DownloadPackageAsync(It.Is<PackageIdentity>(packageIdentity => packageIdentity == newestAvailableVersion.Identity))).ReturnsAsync(downloadPath);
+            this.mockNuGetFeed.Setup(foo => foo.VerifyPackage(It.IsAny<string>(), It.IsAny<string>())).Returns(false);
+
+            bool success = nuGetUpgrader.TryQueryNewestVersion(out actualNewestVersion, out message);
+            success.ShouldBeTrue($"Expecting TryQueryNewestVersion to have completed sucessfully. Error: {message}");
+            actualNewestVersion.ShouldEqual(newestAvailableVersion.Identity.Version.Version, "Actual new version does not match expected new version.");
+
+            bool downloadSuccessful = nuGetUpgrader.TryDownloadNewestVersion(out message);
+            this.mockNuGetFeed.Verify(nuGetFeed => nuGetFeed.VerifyPackage(It.IsAny<string>(), It.IsAny<string>()), Times.Never());
+            downloadSuccessful.ShouldBeTrue("Should be able to download package with verification issues when noVerify is specified");
         }
 
         private IPackageSearchMetadata GeneratePackageSeachMetadata(Version version)

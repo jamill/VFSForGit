@@ -16,14 +16,21 @@ namespace GVFS.Service
     public class ProductUpgradeTimer : IDisposable
     {
         private static readonly TimeSpan TimeInterval = TimeSpan.FromDays(1);
-        private JsonTracer tracer;
+        private ITracer tracer;
         private PhysicalFileSystem fileSystem;
         private Timer timer;
+        private LocalGVFSConfig gvfsConfig;
 
-        public ProductUpgradeTimer(JsonTracer tracer)
+        public ProductUpgradeTimer(ITracer tracer, PhysicalFileSystem fileSystem, LocalGVFSConfig gvfsConfig)
         {
             this.tracer = tracer;
-            this.fileSystem = new PhysicalFileSystem();
+            this.fileSystem = fileSystem;
+            this.gvfsConfig = gvfsConfig;
+        }
+
+        public ProductUpgradeTimer(ITracer tracer)
+            : this(tracer, new PhysicalFileSystem(), null)
+        {
         }
 
         public void Start()
@@ -231,6 +238,12 @@ namespace GVFS.Service
                 nugetPackageFeedUrl = null;
             }
 
+            // Read the org info server Url
+            if (!configSettings.TryGetValue(GVFSConstants.LocalGVFSConfig.OrgInfoServer, out string orgInfoServerUrl))
+            {
+                orgInfoServerUrl = null;
+            }
+
             if (!TryParseOrgFromNugetFeedUrl(nugetPackageFeedUrl, out string org))
             {
                 org = string.Empty;
@@ -238,13 +251,19 @@ namespace GVFS.Service
 
             if (productUpgrader is NuGetUpgrader)
             {
+                if (string.IsNullOrEmpty(org))
+                {
+                    errorMessage = "Org Info Server not configured";
+                    newVersion = null;
+                    return false;
+                }
+
                 tracer.RelatedInfo($"Querying server for latest version in ring {ringType}...");
 
                 // Use the OrgInfoServer instead of NuGet server
                 HttpClient httpClient = new HttpClient();
-                string baseAddress = "https://www.contoso.com";
 
-                OrgInfoServer queryServer = new OrgInfoServer(httpClient, baseAddress);
+                OrgInfoServer queryServer = new OrgInfoServer(httpClient, orgInfoServerUrl);
                 newVersion = queryServer.QueryNewestVersion(org, ringType.ToString());
             }
             else

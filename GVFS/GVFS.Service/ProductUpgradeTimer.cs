@@ -1,10 +1,15 @@
 ﻿using GVFS.Common;
 using GVFS.Common.FileSystem;
+using GVFS.Common.NuGetUpgrade;
 using GVFS.Common.Tracing;
 using GVFS.Upgrader;
 using System;
+using System.Collections.Generic;
 using System.IO;
+using System.Net.Http;
+using System.Text.RegularExpressions;
 using System.Threading;
+using static GVFS.Common.GitHubUpgrader.GitHubUpgraderConfig;
 
 namespace GVFS.Service
 {
@@ -55,6 +60,25 @@ namespace GVFS.Service
             }
         }
 
+        private static bool TryParseOrgFromNugetFeedUrl(string packageFeedUrl, out string orgName)
+        {
+            // We expect a URL of the form https://pkgs.dev.azure.com/{org}
+            // and want to convert it to a URL of the form https://{org}.visualstudio.com
+            Regex packageUrlRegex = new Regex(
+                @"^https://pkgs.dev.azure.com/(?<org>.+?)/",
+                RegexOptions.CultureInvariant | RegexOptions.IgnoreCase);
+            Match urlMatch = packageUrlRegex.Match(packageFeedUrl);
+
+            if (!urlMatch.Success)
+            {
+                orgName = null;
+                return false;
+            }
+
+            orgName = urlMatch.Groups["org"].Value;
+            return true;
+        }
+
         private static EventMetadata CreateEventMetadata(Exception e)
         {
             EventMetadata metadata = new EventMetadata();
@@ -78,12 +102,18 @@ namespace GVFS.Service
                         this.tracer,
                         this.fileSystem);
 
+                    // Load the GVFS config
+                    LocalGVFSConfig gvfsConfig = new LocalGVFSConfig();
+
+                    Dictionary<string, string> configSettings = gvfsConfig.GetAllConfig();
+
                     // The upgrade check always goes against GitHub
-                    GitHubUpgrader productUpgrader = GitHubUpgrader.Create(
+                    ProductUpgrader.TryCreateUpgrader(
                         this.tracer,
                         this.fileSystem,
                         dryRun: false,
                         noVerify: false,
+                        newUpgrader: out ProductUpgrader productUpgrader,
                         error: out errorMessage);
 
                     if (productUpgrader == null)
@@ -136,6 +166,7 @@ namespace GVFS.Service
 
                     if (!this.TryQueryForNewerVersion(
                             activity,
+                            configSettings,
                             productUpgrader,
                             out Version newerVersion,
                             out errorMessage))
@@ -176,19 +207,59 @@ namespace GVFS.Service
             }
         }
 
-        private bool TryQueryForNewerVersion(ITracer tracer, GitHubUpgrader productUpgrader, out Version newVersion, out string errorMessage)
+        private bool TryQueryForNewerVersion(
+            ITracer tracer,
+            Dictionary<string, string> configSettings,
+            ProductUpgrader productUpgrader,
+            out Version newVersion,
+            out string errorMessage)
         {
             errorMessage = null;
-            tracer.RelatedInfo($"Querying server for latest version in ring {productUpgrader.Config.UpgradeRing}...");
 
-            if (!productUpgrader.TryQueryNewestVersion(out newVersion, out string detailedError))
+            // Read the upgrade ring
+            if (!configSettings.TryGetValue(GVFSConstants.LocalGVFSConfig.UpgradeRing, out string ringString))
             {
-                errorMessage = "Could not fetch new version info. " + detailedError;
-                return false;
+                ringString = null;
             }
 
-            string logMessage = newVersion == null ? "No newer versions available." : $"Newer version available: {newVersion}.";
-            tracer.RelatedInfo(logMessage);
+            RingType ringType = LocalGVFSConfig.ParseUpgradeRing(ringString);
+
+            // Read the engineering System
+            if (!configSettings.TryGetValue(GVFSConstants.LocalGVFSConfig.UpgradeFeedUrl, out string nugetPackageFeedUrl))
+            {
+                nugetPackageFeedUrl = null;
+            }
+
+            if (!TryParseOrgFromNugetFeedUrl(nugetPackageFeedUrl, out string org))
+            {
+                org = string.Empty;
+            }
+
+            if (productUpgrader is NuGetUpgrader)
+            {
+                tracer.RelatedInfo($"Querying server for latest version in ring {ringType}...");
+
+                // Use the OrgInfoServer instead of NuGet server
+                HttpClient httpClient = new HttpClient();
+                string baseAddress = "https://www.contoso.com";
+
+                OrgInfoServer queryServer = new OrgInfoServer(httpClient, baseAddress);
+                newVersion = queryServer.QueryNewestVersion(org, ringType.ToString());
+            }
+            else
+            {
+                GitHubUpgrader gitHubUpgrader = productUpgrader as GitHubUpgrader;
+                tracer.RelatedInfo($"Querying server for latest version in ring {ringType}...");
+
+                if (!gitHubUpgrader.TryQueryNewestVersion(out newVersion, out string detailedError))
+                {
+                    errorMessage = "Could not fetch new version info. " + detailedError;
+                    return false;
+                }
+
+                string logMessage = newVersion == null ? "No newer versions available." : $"Newer version available: {newVersion}.";
+                tracer.RelatedInfo(logMessage);
+            }
 
             return true;
         }

@@ -1,8 +1,8 @@
 ﻿using GVFS.Common.FileSystem;
-using GVFS.Common.Tracing;
 using System;
 using System.Collections.Generic;
 using System.IO;
+using static GVFS.Common.GitHubUpgrader.GitHubUpgraderConfig;
 
 namespace GVFS.Common
 {
@@ -22,6 +22,27 @@ namespace GVFS.Common
             this.fileSystem = new PhysicalFileSystem();
         }
 
+        public static RingType ParseUpgradeRing(string ringConfig)
+        {
+            RingType ringType = RingType.None;
+            if (string.IsNullOrEmpty(ringConfig))
+            {
+                return ringType;
+            }
+
+            if (Enum.TryParse(ringConfig, ignoreCase: true, result: out ringType) &&
+                Enum.IsDefined(typeof(RingType), ringType) &&
+                ringType != RingType.Invalid)
+            {
+            }
+            else
+            {
+                ringType = RingType.Invalid;
+            }
+
+            return ringType;
+        }
+
         public virtual bool TryGetAllConfig(out Dictionary<string, string> allConfig, out string error)
         {
             Dictionary<string, string> configCopy = null;
@@ -36,6 +57,21 @@ namespace GVFS.Common
             allConfig = configCopy;
             error = null;
             return true;
+        }
+
+        public virtual Dictionary<string, string> GetAllConfig()
+        {
+            Dictionary<string, string> configCopy = null;
+            string error;
+
+            if (!this.TryPerformAction(
+                () => configCopy = this.allSettings.GetAllKeysAndValues(),
+                out error))
+            {
+                throw new Exception(error);
+            }
+
+            return configCopy;
         }
 
         public virtual bool TryGetConfig(

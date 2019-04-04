@@ -68,7 +68,7 @@ namespace GVFS.Common
                 () => configCopy = this.allSettings.GetAllKeysAndValues(),
                 out error))
             {
-                throw new Exception(error);
+                throw new GVFSException(error);
             }
 
             return configCopy;

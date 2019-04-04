@@ -189,6 +189,7 @@ namespace GVFS.Service
                     info.RecordHighestAvailableVersion(highestAvailableVersion: newerVersion);
                 }
                 catch (Exception ex) when (
+                    ex is GVFSException ||
                     ex is IOException ||
                     ex is UnauthorizedAccessException ||
                     ex is NotSupportedException)

@@ -475,8 +475,14 @@ namespace GVFS.Common.NuGetUpgrade
 
         private bool TryReacquirePersonalAccessToken(string credentialUrl, ITracer tracer, out string token, out string error)
         {
-            if (!this.credentialStore.TryDeleteCredential(this.tracer, credentialUrl, username: null, password: null, error: out error))
+            try
             {
+                this.credentialStore.DeleteCredential(this.tracer, credentialUrl, username: null, password: null);
+            }
+            catch (GVFSException ex)
+            {
+                error = ex.Message;
+
                 token = null;
                 return false;
             }

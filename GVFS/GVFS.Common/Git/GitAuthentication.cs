@@ -66,10 +66,14 @@ namespace GVFS.Common.Git
                         string password;
                         if (TryParseCredentialString(this.cachedCredentialString, out username, out password))
                         {
-                            if (!this.credentialStore.TryStoreCredential(tracer, this.repoUrl, username, password, out string error))
+                            try
+                            {
+                                this.credentialStore.StoreCredential(tracer, this.repoUrl, username, password);
+                            }
+                            catch (GVFSException exception)
                             {
                                 // Storing credentials is best effort attempt - log failure, but do not fail
-                                tracer.RelatedWarning("Failed to store credential string: {0}", error);
+                                tracer.RelatedWarning("Failed to store credential string: {0}", exception.Message);
                             }
 
                             this.isCachedCredentialStringApproved = true;
@@ -101,10 +105,14 @@ namespace GVFS.Common.Git
                     string password;
                     if (TryParseCredentialString(this.cachedCredentialString, out username, out password))
                     {
-                        if (!this.credentialStore.TryDeleteCredential(tracer, this.repoUrl, username, password, out string error))
+                        try
+                        {
+                            this.credentialStore.DeleteCredential(tracer, this.repoUrl, username, password);
+                        }
+                        catch (GVFSException exception)
                         {
                             // Deleting credentials is best effort attempt - log failure, but do not fail
-                            tracer.RelatedWarning("Failed to delete credential string: {0}", error);
+                            tracer.RelatedWarning("Failed to delete credential string: {0}", exception.Message);
                         }
                     }
                     else
@@ -116,7 +124,16 @@ namespace GVFS.Common.Git
                             ["RepoUrl"] = this.repoUrl,
                         });
                         tracer.RelatedWarning(metadata, "Failed to parse credential string for rejection. Rejecting any credential for this repo URL.");
-                        this.credentialStore.TryDeleteCredential(tracer, this.repoUrl, username: null, password: null, error: out string error);
+
+                        try
+                        {
+                            this.credentialStore.DeleteCredential(tracer, this.repoUrl, username, password);
+                        }
+                        catch (GVFSException exception)
+                        {
+                            // Deleting credentials is best effort attempt - log failure, but do not fail
+                            tracer.RelatedWarning("Failed to delete credential string: {0}", exception.Message);
+                        }
                     }
 
                     this.cachedCredentialString = null;

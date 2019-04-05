@@ -6,8 +6,8 @@ namespace GVFS.Common.Git
     {
         bool TryGetCredential(ITracer tracer, string url, out string username, out string password, out string error);
 
-        bool TryStoreCredential(ITracer tracer, string url, string username, string password, out string error);
+        void StoreCredential(ITracer tracer, string url, string username, string password);
 
-        bool TryDeleteCredential(ITracer tracer, string url, string username, string password, out string error);
+        void DeleteCredential(ITracer tracer, string url, string username, string password);
     }
 }

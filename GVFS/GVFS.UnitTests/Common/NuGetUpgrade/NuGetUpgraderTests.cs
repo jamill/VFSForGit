@@ -359,7 +359,7 @@ namespace GVFS.UnitTests.Common.NuGetUpgrade
 
             // Setup the credential manager
             string emptyString = string.Empty;
-            this.mockCredentialManager.Setup(foo => foo.TryDeleteCredential(It.IsAny<ITracer>(), It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>(), out emptyString)).Returns(true);
+            this.mockCredentialManager.Setup(foo => foo.DeleteCredential(It.IsAny<ITracer>(), It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>()));
 
             bool success = this.upgrader.TryQueryNewestVersion(out actualNewestVersion, out message);
 
@@ -371,7 +371,7 @@ namespace GVFS.UnitTests.Common.NuGetUpgrade
 
             string outString = string.Empty;
             this.mockCredentialManager.Verify(credentialManager => credentialManager.TryGetCredential(It.IsAny<ITracer>(), It.IsAny<string>(), out outString, out outString, out outString), Times.Exactly(2));
-            this.mockCredentialManager.Verify(credentialManager => credentialManager.TryDeleteCredential(It.IsAny<ITracer>(), It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>(), out outString), Times.Exactly(1));
+            this.mockCredentialManager.Verify(credentialManager => credentialManager.DeleteCredential(It.IsAny<ITracer>(), It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>()), Times.Exactly(1));
         }
 
         [TestCase]

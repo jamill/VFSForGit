@@ -155,7 +155,7 @@ namespace GVFS.Common.Git
             }
         }
 
-        public virtual bool TryDeleteCredential(ITracer tracer, string repoUrl, string username, string password, out string errorMessage)
+        public virtual void DeleteCredential(ITracer tracer, string repoUrl, string username, string password)
         {
             StringBuilder sb = new StringBuilder();
             sb.AppendFormat("url={0}\n", repoUrl);
@@ -182,15 +182,11 @@ namespace GVFS.Common.Git
             {
                 tracer.RelatedWarning("Git could not reject credentials: {0}", result.Errors);
 
-                errorMessage = result.Errors;
-                return false;
+                throw new GVFSException(result.Errors);
             }
-
-            errorMessage = null;
-            return true;
         }
 
-        public virtual bool TryStoreCredential(ITracer tracer, string repoUrl, string username, string password, out string errorMessage)
+        public virtual void StoreCredential(ITracer tracer, string repoUrl, string username, string password)
         {
             StringBuilder sb = new StringBuilder();
             sb.AppendFormat("url={0}\n", repoUrl);
@@ -209,12 +205,8 @@ namespace GVFS.Common.Git
             {
                 tracer.RelatedWarning("Git could not approve credentials: {0}", result.Errors);
 
-                errorMessage = result.Errors;
-                return false;
+                throw new GVFSException(result.Errors);
             }
-
-            errorMessage = null;
-            return true;
         }
 
         /// <summary>

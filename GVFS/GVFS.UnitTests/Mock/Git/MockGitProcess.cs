@@ -17,16 +17,16 @@ namespace GVFS.UnitTests.Mock.Git
             : base(new MockGVFSEnlistment())
         {
             this.CommandsRun = new List<string>();
-            this.StoredCredentials = new Dictionary<string, Credential>(StringComparer.OrdinalIgnoreCase);
-            this.CredentialApprovals = new Dictionary<string, List<Credential>>();
-            this.CredentialRejections = new Dictionary<string, List<Credential>>();
+            this.StoredCredentials = new Dictionary<string, SimpleCredential>(StringComparer.OrdinalIgnoreCase);
+            this.CredentialApprovals = new Dictionary<string, List<SimpleCredential>>();
+            this.CredentialRejections = new Dictionary<string, List<SimpleCredential>>();
         }
 
         public List<string> CommandsRun { get; }
         public bool ShouldFail { get; set; }
-        public Dictionary<string, Credential> StoredCredentials { get; }
-        public Dictionary<string, List<Credential>> CredentialApprovals { get; }
-        public Dictionary<string, List<Credential>> CredentialRejections { get; }
+        public Dictionary<string, SimpleCredential> StoredCredentials { get; }
+        public Dictionary<string, List<SimpleCredential>> CredentialApprovals { get; }
+        public Dictionary<string, List<SimpleCredential>> CredentialRejections { get; }
 
         public void SetExpectedCommandResult(string command, Func<Result> result, bool matchPrefix = false)
         {
@@ -36,13 +36,13 @@ namespace GVFS.UnitTests.Mock.Git
 
         public override void StoreCredential(ITracer tracer, string repoUrl, string username, string password)
         {
-            Credential credential = new Credential(username, password);
+            SimpleCredential credential = new SimpleCredential(username, password);
 
             // Record the approval request for this credential
-            List<Credential> acceptedCredentials;
+            List<SimpleCredential> acceptedCredentials;
             if (!this.CredentialApprovals.TryGetValue(repoUrl, out acceptedCredentials))
             {
-                acceptedCredentials = new List<Credential>();
+                acceptedCredentials = new List<SimpleCredential>();
                 this.CredentialApprovals[repoUrl] = acceptedCredentials;
             }
 
@@ -56,13 +56,13 @@ namespace GVFS.UnitTests.Mock.Git
 
         public override void DeleteCredential(ITracer tracer, string repoUrl, string username, string password)
         {
-            Credential credential = new Credential(username, password);
+            SimpleCredential credential = new SimpleCredential(username, password);
 
             // Record the rejection request for this credential
-            List<Credential> rejectedCredentials;
+            List<SimpleCredential> rejectedCredentials;
             if (!this.CredentialRejections.TryGetValue(repoUrl, out rejectedCredentials))
             {
-                rejectedCredentials = new List<Credential>();
+                rejectedCredentials = new List<SimpleCredential>();
                 this.CredentialRejections[repoUrl] = rejectedCredentials;
             }
 
@@ -108,23 +108,6 @@ namespace GVFS.UnitTests.Mock.Git
             matchedCommand.ShouldNotBeNull("Unexpected command: " + command);
 
             return matchedCommand.Result();
-        }
-
-        public class Credential
-        {
-            public Credential(string username, string password)
-            {
-                this.Username = username;
-                this.Password = password;
-            }
-
-            public string Username { get; }
-            public string Password { get; }
-
-            public string BasicAuthString
-            {
-                get => Convert.ToBase64String(Encoding.ASCII.GetBytes(this.Username + ":" + this.Password));
-            }
         }
 
         private class CommandInfo

@@ -46,93 +46,65 @@ namespace GVFS.CommandLine
 
         public override void Execute()
         {
-            if (!GVFSPlatform.Instance.UnderConstruction.SupportsGVFSConfig)
+            try
             {
-                this.ReportErrorAndExit("`gvfs config` is not yet implemented on this operating system.");
-            }
-
-            this.localConfig = new LocalGVFSConfig();
-            string error = null;
-
-            if (this.IsMutuallyExclusiveOptionsSet(out error))
-            {
-                this.ReportErrorAndExit(error);
-            }
-
-            if (this.List)
-            {
-                Dictionary<string, string> allSettings = null;
-                try
+                if (!GVFSPlatform.Instance.UnderConstruction.SupportsGVFSConfig)
                 {
-                    allSettings = this.localConfig.GetAllConfig();
-                }
-                catch (GVFSException ex)
-                {
-                    this.ReportErrorAndExit(ex.Message);
+                    this.ReportErrorAndExit("`gvfs config` is not yet implemented on this operating system.");
                 }
 
-                const string ConfigOutputFormat = "{0}={1}";
-                foreach (KeyValuePair<string, string> setting in allSettings)
+                this.localConfig = new LocalGVFSConfig();
+                string error = null;
+
+                if (this.IsMutuallyExclusiveOptionsSet(out error))
                 {
-                    Console.WriteLine(ConfigOutputFormat, setting.Key, setting.Value);
-                }
-            }
-            else if (!string.IsNullOrEmpty(this.KeyToDelete))
-            {
-                if (!GVFSPlatform.Instance.IsElevated())
-                {
-                    this.ReportErrorAndExit("`gvfs config` must be run from an elevated command prompt when deleting settings.");
+                    this.ReportErrorAndExit(error);
                 }
 
-                try
+                if (this.List)
                 {
-                    this.localConfig.RemoveConfig(this.KeyToDelete);
+                    Dictionary<string, string> allSettings = this.localConfig.GetAllConfig();
+
+                    const string ConfigOutputFormat = "{0}={1}";
+                    foreach (KeyValuePair<string, string> setting in allSettings)
+                    {
+                        Console.WriteLine(ConfigOutputFormat, setting.Key, setting.Value);
+                    }
                 }
-                catch (GVFSException ex)
-                {
-                    this.ReportErrorAndExit(ex.Message);
-                }
-            }
-            else if (!string.IsNullOrEmpty(this.Key))
-            {
-                bool valueSpecified = !string.IsNullOrEmpty(this.Value);
-                if (valueSpecified)
+                else if (!string.IsNullOrEmpty(this.KeyToDelete))
                 {
                     if (!GVFSPlatform.Instance.IsElevated())
                     {
-                        this.ReportErrorAndExit("`gvfs config` must be run from an elevated command prompt when configuring settings.");
+                        this.ReportErrorAndExit("`gvfs config` must be run from an elevated command prompt when deleting settings.");
                     }
 
-                    try
+                    this.localConfig.RemoveConfig(this.KeyToDelete);
+                }
+                else if (!string.IsNullOrEmpty(this.Key))
+                {
+                    bool valueSpecified = !string.IsNullOrEmpty(this.Value);
+                    if (valueSpecified)
                     {
                         this.localConfig.SetConfig(this.Key, this.Value);
                     }
-                    catch (GVFSException ex)
+                    else
                     {
-                        this.ReportErrorAndExit(ex.Message);
+                        string valueRead = this.localConfig.GetConfig(this.Key);
+
+                        if (string.IsNullOrEmpty(valueRead))
+                        {
+                            this.ReportErrorAndExit("No value returned");
+                        }
                     }
                 }
                 else
                 {
-                    string valueRead = null;
-                    try
-                    {
-                        valueRead = this.localConfig.GetConfig(this.Key);
-                    }
-                    catch (GVFSException ex)
-                    {
-                        this.ReportErrorAndExit(ex.Message);
-                    }
-
-                    if (string.IsNullOrEmpty(valueRead))
-                    {
-                        this.ReportErrorAndExit("No value returned");
-                    }
+                    this.ReportErrorAndExit("You must specify an option. Run `gvfs config --help` for details.");
                 }
             }
-            else
+            catch (GVFSException ex)
             {
-                this.ReportErrorAndExit("You must specify an option. Run `gvfs config --help` for details.");
+                this.ReportErrorAndExit(ex.Message);
             }
         }
 

@@ -319,25 +319,33 @@ namespace GVFS.Common.Git
 
         private bool TryCallGitCredential(ITracer tracer, out string errorMessage)
         {
-            string gitUsername;
-            string gitPassword;
-            if (!this.credentialStore.TryGetCredential(tracer, this.repoUrl, out gitUsername, out gitPassword, out errorMessage))
+            SimpleCredential credential;
+
+            try
             {
+                credential = this.credentialStore.GetCredential(tracer, this.repoUrl);
+            }
+            catch (GVFSException ex)
+            {
+                errorMessage = ex.Message;
                 this.UpdateBackoff();
                 return false;
             }
 
-            if (!string.IsNullOrEmpty(gitUsername) && !string.IsNullOrEmpty(gitPassword))
+            if (!string.IsNullOrEmpty(credential?.Username) &&
+                !string.IsNullOrEmpty(credential?.Password))
             {
-                this.cachedCredentialString = Convert.ToBase64String(Encoding.ASCII.GetBytes(gitUsername + ":" + gitPassword));
+                this.cachedCredentialString = credential.BasicAuthString;
                 this.isCachedCredentialStringApproved = false;
             }
             else
             {
+                this.UpdateBackoff();
                 errorMessage = "Got back empty credentials from git";
                 return false;
             }
 
+            errorMessage = null;
             return true;
         }
     }

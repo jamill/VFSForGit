@@ -75,9 +75,8 @@ namespace GVFS.UnitTests.Common.NuGetUpgrade
                     null));
 
             this.mockCredentialManager = new Mock<ICredentialStore>();
-            string credentialManagerString = "value";
             string emptyString = string.Empty;
-            this.mockCredentialManager.Setup(foo => foo.TryGetCredential(It.IsAny<ITracer>(), It.IsAny<string>(), out credentialManagerString, out credentialManagerString, out credentialManagerString)).Returns(true);
+            this.mockCredentialManager.Setup(foo => foo.GetCredential(It.IsAny<ITracer>(), It.IsAny<string>())).Returns(new SimpleCredential("userName", "password"));
 
             this.upgrader = new NuGetUpgrader(
                 CurrentVersion,
@@ -370,7 +369,7 @@ namespace GVFS.UnitTests.Common.NuGetUpgrade
             this.mockNuGetFeed.Verify(nuGetFeed => nuGetFeed.QueryFeedAsync(It.IsAny<string>()), Times.Exactly(2));
 
             string outString = string.Empty;
-            this.mockCredentialManager.Verify(credentialManager => credentialManager.TryGetCredential(It.IsAny<ITracer>(), It.IsAny<string>(), out outString, out outString, out outString), Times.Exactly(2));
+            this.mockCredentialManager.Verify(credentialManager => credentialManager.GetCredential(It.IsAny<ITracer>(), It.IsAny<string>()), Times.Exactly(2));
             this.mockCredentialManager.Verify(credentialManager => credentialManager.DeleteCredential(It.IsAny<ITracer>(), It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>()), Times.Exactly(1));
         }
 

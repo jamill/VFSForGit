@@ -264,18 +264,14 @@ namespace GVFS.Common.Git
             }
         }
 
-        public virtual bool TryGetCredential(
+        public virtual SimpleCredential GetCredential(
             ITracer tracer,
-            string repoUrl,
-            out string username,
-            out string password,
-            out string errorMessage)
+            string repoUrl)
         {
-            username = null;
-            password = null;
-            errorMessage = null;
+            string userName = null;
+            string password = null;
 
-            using (ITracer activity = tracer.StartActivity(nameof(this.TryGetCredential), EventLevel.Informational))
+            using (ITracer activity = tracer.StartActivity(nameof(this.GetCredential), EventLevel.Informational))
             {
                 Result gitCredentialOutput = this.InvokeGitAgainstDotGitFolder(
                     GenerateCredentialVerbCommand("fill"),
@@ -289,25 +285,30 @@ namespace GVFS.Common.Git
                         errorData,
                         "Git could not get credentials: " + gitCredentialOutput.Errors,
                         Keywords.Network | Keywords.Telemetry);
-                    errorMessage = gitCredentialOutput.Errors;
 
-                    return false;
+                    throw new GVFSException(gitCredentialOutput.Errors);
                 }
 
-                username = ParseValue(gitCredentialOutput.Output, "username=");
+                userName = ParseValue(gitCredentialOutput.Output, "username=");
                 password = ParseValue(gitCredentialOutput.Output, "password=");
 
-                bool success = username != null && password != null;
+                bool success = userName != null && password != null;
 
                 EventMetadata metadata = new EventMetadata();
                 metadata.Add("Success", success);
-                if (!success)
+
+                SimpleCredential simpleCredential = null;
+                if (success)
+                {
+                    simpleCredential = new SimpleCredential(userName, password);
+                }
+                else
                 {
                     metadata.Add("Output", gitCredentialOutput.Output);
                 }
 
                 activity.Stop(metadata);
-                return success;
+                return simpleCredential;
             }
         }
 

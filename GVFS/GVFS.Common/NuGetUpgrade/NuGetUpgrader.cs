@@ -470,7 +470,21 @@ namespace GVFS.Common.NuGetUpgrade
         private bool TryGetPersonalAccessToken(string credentialUrl, ITracer tracer, out string token, out string error)
         {
             error = null;
-            return this.credentialStore.TryGetCredential(this.tracer, credentialUrl, out string username, out token, out error);
+
+            try
+            {
+                SimpleCredential credential = this.credentialStore.GetCredential(this.tracer, credentialUrl);
+                token = credential?.Password;
+
+                return !string.IsNullOrEmpty(token);
+            }
+            catch (GVFSException ex)
+            {
+                error = ex.Message;
+
+                token = null;
+                return false;
+            }
         }
 
         private bool TryReacquirePersonalAccessToken(string credentialUrl, ITracer tracer, out string token, out string error)

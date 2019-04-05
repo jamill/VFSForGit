@@ -707,22 +707,19 @@ namespace GVFS.Common.NuGetUpgrade
             /// </summary>
             public bool TryLoad(out string error)
             {
-                string configValue;
-                if (!this.localConfig.TryGetConfig(GVFSConstants.LocalGVFSConfig.UpgradeFeedUrl, out configValue, out error))
+                try
                 {
+                    this.FeedUrl = this.localConfig.GetConfig(GVFSConstants.LocalGVFSConfig.UpgradeFeedUrl);
+                    this.PackageFeedName = this.localConfig.GetConfig(GVFSConstants.LocalGVFSConfig.UpgradeFeedPackageName);
+                }
+                catch (GVFSException ex)
+                {
+                    error = ex.Message;
                     this.tracer.RelatedError(error);
                     return false;
                 }
 
-                this.FeedUrl = configValue;
-
-                if (!this.localConfig.TryGetConfig(GVFSConstants.LocalGVFSConfig.UpgradeFeedPackageName, out configValue, out error))
-                {
-                    this.tracer.RelatedError(error);
-                    return false;
-                }
-
-                this.PackageFeedName = configValue;
+                error = null;
                 return true;
             }
         }

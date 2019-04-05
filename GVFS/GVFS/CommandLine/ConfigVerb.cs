@@ -50,16 +50,16 @@ namespace GVFS.CommandLine
             {
                 if (!GVFSPlatform.Instance.UnderConstruction.SupportsGVFSConfig)
                 {
-                    this.ReportErrorAndExit("`gvfs config` is not yet implemented on this operating system.");
+                    throw new GVFSException("`gvfs config` is not yet implemented on this operating system.");
+                }
+
+                string error = null;
+                if (this.IsMutuallyExclusiveOptionsSet(out error))
+                {
+                    throw new GVFSException(error);
                 }
 
                 this.localConfig = new LocalGVFSConfig();
-                string error = null;
-
-                if (this.IsMutuallyExclusiveOptionsSet(out error))
-                {
-                    this.ReportErrorAndExit(error);
-                }
 
                 if (this.List)
                 {
@@ -75,7 +75,7 @@ namespace GVFS.CommandLine
                 {
                     if (!GVFSPlatform.Instance.IsElevated())
                     {
-                        this.ReportErrorAndExit("`gvfs config` must be run from an elevated command prompt when deleting settings.");
+                        throw new GVFSException("`gvfs config` must be run from an elevated command prompt when deleting settings.");
                     }
 
                     this.localConfig.RemoveConfig(this.KeyToDelete);
@@ -93,13 +93,13 @@ namespace GVFS.CommandLine
 
                         if (string.IsNullOrEmpty(valueRead))
                         {
-                            this.ReportErrorAndExit("No value returned");
+                            throw new GVFSException("No value returned");
                         }
                     }
                 }
                 else
                 {
-                    this.ReportErrorAndExit("You must specify an option. Run `gvfs config --help` for details.");
+                    throw new GVFSException("You must specify an option. Run `gvfs config --help` for details.");
                 }
             }
             catch (GVFSException ex)

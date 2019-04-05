@@ -22,6 +22,42 @@ namespace GVFS.Common
             this.fileSystem = new PhysicalFileSystem();
         }
 
+        public Dictionary<string, string> GetAllConfig()
+        {
+            if (!this.TryGetAllConfig(out Dictionary<string, string> allConfig, out string error))
+            {
+                throw new GVFSException(error);
+            }
+
+            return allConfig;
+        }
+
+        public string GetConfig(string name)
+        {
+            if (!this.TryGetConfig(name, out string value, out string error))
+            {
+                throw new GVFSException(error);
+            }
+
+            return value;
+        }
+
+        public void SetConfig(string name, string value)
+        {
+            if (!this.TrySetConfig(name, value, out string error))
+            {
+                throw new GVFSException(error);
+            }
+        }
+
+        public void RemoveConfig(string name)
+        {
+            if (!this.TryRemoveConfig(name, out string error))
+            {
+                throw new GVFSException(error);
+            }
+        }
+
         public virtual bool TryGetAllConfig(out Dictionary<string, string> allConfig, out string error)
         {
             Dictionary<string, string> configCopy = null;

@@ -61,10 +61,14 @@ namespace GVFS.CommandLine
 
             if (this.List)
             {
-                Dictionary<string, string> allSettings;
-                if (!this.localConfig.TryGetAllConfig(out allSettings, out error))
+                Dictionary<string, string> allSettings = null;
+                try
                 {
-                    this.ReportErrorAndExit(error);
+                    allSettings = this.localConfig.GetAllConfig();
+                }
+                catch (GVFSException ex)
+                {
+                    this.ReportErrorAndExit(ex.Message);
                 }
 
                 const string ConfigOutputFormat = "{0}={1}";
@@ -80,9 +84,13 @@ namespace GVFS.CommandLine
                     this.ReportErrorAndExit("`gvfs config` must be run from an elevated command prompt when deleting settings.");
                 }
 
-                if (!this.localConfig.TryRemoveConfig(this.KeyToDelete, out error))
+                try
                 {
-                    this.ReportErrorAndExit(error);
+                    this.localConfig.RemoveConfig(this.KeyToDelete);
+                }
+                catch (GVFSException ex)
+                {
+                    this.ReportErrorAndExit(ex.Message);
                 }
             }
             else if (!string.IsNullOrEmpty(this.Key))
@@ -95,22 +103,30 @@ namespace GVFS.CommandLine
                         this.ReportErrorAndExit("`gvfs config` must be run from an elevated command prompt when configuring settings.");
                     }
 
-                    if (!this.localConfig.TrySetConfig(this.Key, this.Value, out error))
+                    try
                     {
-                        this.ReportErrorAndExit(error);
+                        this.localConfig.SetConfig(this.Key, this.Value);
+                    }
+                    catch (GVFSException ex)
+                    {
+                        this.ReportErrorAndExit(ex.Message);
                     }
                 }
                 else
                 {
                     string valueRead = null;
-                    if (!this.localConfig.TryGetConfig(this.Key, out valueRead, out error) ||
-                        string.IsNullOrEmpty(valueRead))
+                    try
                     {
-                        this.ReportErrorAndExit(error);
+                        valueRead = this.localConfig.GetConfig(this.Key);
                     }
-                    else
+                    catch (GVFSException ex)
                     {
-                        Console.WriteLine(valueRead);
+                        this.ReportErrorAndExit(ex.Message);
+                    }
+
+                    if (string.IsNullOrEmpty(valueRead))
+                    {
+                        this.ReportErrorAndExit("No value returned");
                     }
                 }
             }

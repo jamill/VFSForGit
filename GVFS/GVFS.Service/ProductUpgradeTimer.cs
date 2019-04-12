@@ -78,13 +78,14 @@ namespace GVFS.Service
                         this.tracer,
                         this.fileSystem);
 
-                    // The upgrade check always goes against GitHub
-                    GitHubUpgrader productUpgrader = GitHubUpgrader.Create(
+                    ProductUpgrader.TryCreateUpgrader(
                         this.tracer,
                         this.fileSystem,
                         new LocalGVFSConfig(),
+                        credentialStore: null,
                         dryRun: false,
                         noVerify: false,
+                        newUpgrader: out ProductUpgrader productUpgrader,
                         error: out errorMessage);
 
                     if (productUpgrader == null)
@@ -188,10 +189,10 @@ namespace GVFS.Service
             }
         }
 
-        private bool TryQueryForNewerVersion(ITracer tracer, GitHubUpgrader productUpgrader, out Version newVersion, out string errorMessage)
+        private bool TryQueryForNewerVersion(ITracer tracer, ProductUpgrader productUpgrader, out Version newVersion, out string errorMessage)
         {
             errorMessage = null;
-            tracer.RelatedInfo($"Querying server for latest version in ring {productUpgrader.Config.UpgradeRing}...");
+            tracer.RelatedInfo($"Querying server for latest version...");
 
             if (!productUpgrader.TryQueryNewestVersion(out newVersion, out string detailedError))
             {

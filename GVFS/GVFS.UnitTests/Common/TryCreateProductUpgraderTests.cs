@@ -13,6 +13,7 @@ namespace GVFS.UnitTests.Common
     {
         private static string defaultUpgradeFeedPackageName = "package";
         private static string defaultUpgradeFeedUrl = "https://pkgs.dev.azure.com/contoso";
+        private static string defaultOrgInfoServerUrl = "https://www.contoso.com";
         private static string defaultRing = "slow";
 
         private MockTracer tracer;
@@ -111,9 +112,75 @@ namespace GVFS.UnitTests.Common
         }
 
         [TestCase]
+        public void CreatesModernNuGetUpgrader()
+        {
+            MockLocalGVFSConfig gvfsConfig = this.ConstructDefaultMockModernNuGetConfigBuilder()
+                .Build();
+
+            bool success = ProductUpgrader.TryCreateUpgrader(
+                this.tracer,
+                this.fileSystemMock.Object,
+                gvfsConfig,
+                this.credentialStoreMock.Object,
+                false,
+                false,
+                out ProductUpgrader productUpgrader,
+                out string error);
+
+            success.ShouldBeTrue();
+            productUpgrader.ShouldNotBeNull();
+            productUpgrader.ShouldBeOfType<ModernNugetUpgrader>();
+            error.ShouldBeNull();
+        }
+
+        [TestCase]
         public void NoUpgraderWhenNuGetFeedMissing()
         {
             MockLocalGVFSConfig gvfsConfig = this.ConstructDefaultMockNuGetConfigBuilder()
+                .WithNoUpgradeFeedUrl()
+                .Build();
+
+            bool success = ProductUpgrader.TryCreateUpgrader(
+                this.tracer,
+                this.fileSystemMock.Object,
+                gvfsConfig,
+                this.credentialStoreMock.Object,
+                false,
+                false,
+                out ProductUpgrader productUpgrader,
+                out string error);
+
+            success.ShouldBeFalse();
+            productUpgrader.ShouldBeNull();
+            error.ShouldNotBeNull();
+        }
+
+        [TestCase]
+        public void NoModernUpgraderWhenNuGetPackNameMissing()
+        {
+            MockLocalGVFSConfig gvfsConfig = this.ConstructDefaultMockModernNuGetConfigBuilder()
+                .WithNoUpgradeFeedPackageName()
+                .Build();
+
+            bool success = ProductUpgrader.TryCreateUpgrader(
+                this.tracer,
+                this.fileSystemMock.Object,
+                gvfsConfig,
+                this.credentialStoreMock.Object,
+                false,
+                false,
+                out ProductUpgrader productUpgrader,
+                out string error);
+
+            success.ShouldBeFalse();
+            productUpgrader.ShouldBeNull();
+            error.ShouldNotBeNull();
+        }
+
+        [TestCase]
+        public void NoModernUpgraderWhenNuGetFeedMissing()
+        {
+            MockLocalGVFSConfig gvfsConfig = this.ConstructDefaultMockModernNuGetConfigBuilder()
                 .WithNoUpgradeFeedUrl()
                 .Build();
 
@@ -164,6 +231,17 @@ namespace GVFS.UnitTests.Common
             return configBuilder;
         }
 
+        private MockLocalGVFSConfigBuilder ConstructDefaultMockModernNuGetConfigBuilder()
+        {
+            MockLocalGVFSConfigBuilder configBuilder = this.ConstructMockLocalGVFSConfigBuilder()
+                .WithUpgradeRing()
+                .WithUpgradeFeedPackageName()
+                .WithUpgradeFeedUrl()
+                .WithOrgInfoServerUrl();
+
+            return configBuilder;
+        }
+
         private MockLocalGVFSConfigBuilder ConstructDefaultGitHubConfigBuilder()
         {
             MockLocalGVFSConfigBuilder configBuilder = this.ConstructMockLocalGVFSConfigBuilder()
@@ -177,7 +255,8 @@ namespace GVFS.UnitTests.Common
             return new MockLocalGVFSConfigBuilder(
                 defaultRing,
                 defaultUpgradeFeedUrl,
-                defaultUpgradeFeedPackageName);
+                defaultUpgradeFeedPackageName,
+                defaultOrgInfoServerUrl);
         }
     }
 }

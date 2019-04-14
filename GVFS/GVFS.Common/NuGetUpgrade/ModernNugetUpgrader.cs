@@ -9,13 +9,13 @@ namespace GVFS.Common.NuGetUpgrade
 {
     public class ModernNugetUpgrader : NuGetUpgrader
     {
-        private HttpClient httpClient;
+        private IQueryGVFSVersion gvfsVersionFetcher;
 
         public ModernNugetUpgrader(
            string currentVersion,
            ITracer tracer,
            PhysicalFileSystem fileSystem,
-           HttpClient httpClient,
+           IQueryGVFSVersion gvfsVersionFetcher,
            bool dryRun,
            bool noVerify,
            ModernNuGetUpgraderConfig config,
@@ -31,26 +31,12 @@ namespace GVFS.Common.NuGetUpgrade
                downloadFolder,
                credentialStore)
         {
-            this.httpClient = httpClient;
+            this.gvfsVersionFetcher = gvfsVersionFetcher;
         }
 
         public override bool SupportsAnonymousVersionQuery { get => true; }
 
         private ModernNuGetUpgraderConfig Config { get => this.nuGetUpgraderConfig as ModernNuGetUpgraderConfig;  }
-        private string OrgInfoServerUrl { get => this.Config.OrgInfoServer; }
-        private string Ring { get => this.Config.UpgradeRing; }
-        private string OrgName
-        {
-            get
-            {
-                if (!TryParseOrgFromNugetFeedUrl(this.Config.FeedUrl, out string orgName))
-                {
-                    return null;
-                }
-
-                return orgName;
-            }
-        }
 
         public static bool TryCreate(
             ITracer tracer,
@@ -82,11 +68,24 @@ namespace GVFS.Common.NuGetUpgrade
                 return false;
             }
 
+            if (!TryParseOrgFromNugetFeedUrl(upgraderConfig.FeedUrl, out string orgName))
+            {
+                error = "Unable to parse org name from NuGet feed URL";
+                return false;
+            }
+
+            QueryGVFSVersionFromOrgInfo gvfsVersionFetcher = new QueryGVFSVersionFromOrgInfo(
+                httpClient,
+                upgraderConfig.OrgInfoServer,
+                orgName,
+                "windows",
+                upgraderConfig.UpgradeRing);
+
             upgrader = new ModernNugetUpgrader(
                 ProcessHelper.GetCurrentProcessVersion(),
                 tracer,
                 fileSystem,
-                httpClient,
+                gvfsVersionFetcher,
                 dryRun,
                 noVerify,
                 upgraderConfig,
@@ -99,16 +98,7 @@ namespace GVFS.Common.NuGetUpgrade
         public override bool TryQueryNewestVersion(out Version newVersion, out string message)
         {
             newVersion = null;
-            string orgName = this.OrgName;
-
-            if (orgName == null)
-            {
-                message = "ModernNuGetUpgrader is not able to parse org name from NuGet Package Feed URL";
-                return false;
-            }
-
-            OrgInfoApiClient infoServer = new OrgInfoApiClient(this.httpClient, this.OrgInfoServerUrl);
-            this.highestVersionAvailable = infoServer.QueryNewestVersion(orgName, "windows", this.Ring);
+            this.highestVersionAvailable = this.gvfsVersionFetcher.QueryVersion();
 
             if (this.highestVersionAvailable != null &&
                 this.highestVersionAvailable > this.installedVersion)

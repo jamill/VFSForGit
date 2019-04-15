@@ -12,7 +12,7 @@ namespace GVFS.UnitTests.Common
     public class TryCreateProductUpgradeTests
     {
         private static string defaultUpgradeFeedPackageName = "package";
-        private static string defaultUpgradeFeedUrl = "https://pkgs.dev.azure.com/contoso";
+        private static string defaultUpgradeFeedUrl = "https://pkgs.dev.azure.com/contoso/";
         private static string defaultOrgInfoServerUrl = "https://www.contoso.com";
         private static string defaultRing = "slow";
 

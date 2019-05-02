@@ -1,6 +1,6 @@
 @ECHO OFF
 SETLOCAL
-
+setlocal enabledelayedexpansion
 CALL %~dp0\InitializeEnvironment.bat || EXIT /b 10
 
 IF "%1"=="" (SET "Configuration=Debug") ELSE (SET "Configuration=%1")
@@ -15,14 +15,24 @@ IF NOT EXIST %nuget% (
 )
 
 :: Acquire vswhere to find dev15 installations reliably.
-SET vswherever=2.5.2
+SET vswherever=2.6.7
 %nuget% install vswhere -Version %vswherever% || exit /b 1
 SET vswhere=%VFS_PACKAGESDIR%\vswhere.%vswherever%\tools\vswhere.exe
 
-:: Use vswhere to find the latest VS installation (including prerelease installations) with the msbuild component.
+:: Use vswhere to find the latest VS installation with the msbuild component.
 :: See https://github.com/Microsoft/vswhere/wiki/Find-MSBuild
-for /f "usebackq tokens=*" %%i in (`%vswhere% -all -prerelease -latest -version "[15.0,16.0)" -products * -requires Microsoft.Component.MSBuild Microsoft.VisualStudio.Workload.ManagedDesktop Microsoft.VisualStudio.Workload.NativeDesktop Microsoft.VisualStudio.Workload.NetCoreTools Microsoft.Component.NetFX.Core.Runtime Microsoft.VisualStudio.Component.Windows10SDK.10240 -property installationPath`) do (
+for /f "usebackq tokens=*" %%i in (`%vswhere% -all -prerelease -latest -products * -requires Microsoft.Component.MSBuild Microsoft.VisualStudio.Workload.ManagedDesktop Microsoft.VisualStudio.Workload.NativeDesktop Microsoft.VisualStudio.Workload.NetCoreTools Microsoft.Net.Core.Component.SDK.2.1 -property installationPath`) do (
   set VsInstallDir=%%i
+)
+
+:: Assumes default installation location for Windows 10 SDKs
+IF NOT EXIST "c:\Program Files (x86)\Windows Kits\10\Include\10.0.10240.0" (
+  echo ERROR: Could not find Windows 10 SDK Version 10240
+  exit /b 1
+)
+
+for /f "usebackq tokens=*" %%i in (`%vswhere% -all -prerelease -latest -products * -requires Microsoft.Component.MSBuild Microsoft.VisualStudio.Workload.ManagedDesktop Microsoft.VisualStudio.Workload.NativeDesktop Microsoft.VisualStudio.Workload.NetCoreTools Microsoft.Net.Core.Component.SDK.2.1 -find MSBuild\**\Bin\amd64\MSBuild.exe`) do (
+ set msbuild="%%i"
 )
 
 IF NOT DEFINED VsInstallDir (
@@ -31,7 +41,6 @@ IF NOT DEFINED VsInstallDir (
   exit /b 10
 )
 
-SET msbuild="%VsInstallDir%\MSBuild\15.0\Bin\amd64\msbuild.exe"
 IF NOT EXIST %msbuild% (
   echo ERROR: Could not find msbuild
   exit /b 1

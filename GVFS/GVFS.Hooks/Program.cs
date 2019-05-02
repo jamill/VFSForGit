@@ -417,6 +417,16 @@ namespace GVFS.Hooks
                 case "version":
                 case "web--browse":
                     return false;
+
+                /*
+                 * The following are commands that are blocked by git.exe itself.
+                 * As they are no-ops, we do not need to take the GVFS lock for these.
+                 */
+                case "gc":
+                case "prune":
+                case "repack":
+                case "submodule":
+                    return false;
             }
 
             if (gitCommand == "reset" && args.Contains("--soft"))

@@ -146,6 +146,11 @@ namespace GVFS.UnitTests.Mock.Common
             return true;
         }
 
+        public override string GetProgramLocater()
+        {
+            return "MockWhere";
+        }
+
         public override FileBasedLock CreateFileBasedLock(PhysicalFileSystem fileSystem, ITracer tracer, string lockPath)
         {
             return new MockFileBasedLock(fileSystem, tracer, lockPath);

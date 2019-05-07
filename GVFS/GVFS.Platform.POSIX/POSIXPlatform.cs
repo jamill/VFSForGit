@@ -176,6 +176,11 @@ namespace GVFS.Platform.POSIX
             return false;
         }
 
+        public override string GetProgramLocater()
+        {
+            return "which";
+        }
+
         public override bool TryKillProcessTree(int processId, out int exitCode, out string error)
         {
             ProcessResult result = ProcessHelper.Run("pkill", $"-P {processId}");

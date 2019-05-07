@@ -88,6 +88,8 @@ namespace GVFS.Common
             return true;
         }
 
+        public abstract string GetProgramLocater();
+
         public abstract class GVFSPlatformConstants
         {
             public static readonly char PathSeparator = Path.DirectorySeparatorChar;

@@ -436,6 +436,11 @@ namespace GVFS.Platform.Windows
                 }
             }
 
+            public override HashSet<string> UpgradeBlockingProcesses
+            {
+                get { return new HashSet<string> { "GVFS", "GVFS.Mount", "git", "ssh-agent", "wish", "bash" }; }
+            }
+
             public override string GVFSBinDirectoryName
             {
                 get { return "GVFS"; }

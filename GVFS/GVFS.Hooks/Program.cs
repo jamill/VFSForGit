@@ -24,6 +24,7 @@ namespace GVFS.Hooks
         private static string enlistmentRoot;
         private static string enlistmentPipename;
         private static Random random = new Random();
+        private static bool wait = true;
 
         private delegate void LockRequestDelegate(bool unattended, string[] args, int pid, NamedPipeClient pipeClient);
 
@@ -426,7 +427,14 @@ namespace GVFS.Hooks
                 case "prune":
                 case "repack":
                 case "submodule":
-                    return false;
+                    {
+                        while (wait)
+                        {
+                            System.Threading.Thread.Sleep(1000);
+                        }
+
+                        return false;
+                    }
             }
 
             if (gitCommand == "reset" && args.Contains("--soft"))

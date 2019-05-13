@@ -199,6 +199,8 @@ namespace GVFS.Platform.POSIX
             {
                 get { return "gvfs"; }
             }
+
+            public override bool SupportsInlineUpgrade { get; } = true;
         }
     }
 }

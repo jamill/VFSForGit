@@ -201,6 +201,8 @@ namespace GVFS.UnitTests.Mock.Common
             {
                 get { return "MockGVFS" + this.ExecutableExtension; }
             }
+
+            public override bool SupportsInlineUpgrade { get; } = false;
         }
     }
 }

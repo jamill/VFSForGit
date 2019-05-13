@@ -418,6 +418,8 @@ namespace GVFS.Platform.Windows
                 get { return ".exe"; }
             }
 
+            public override bool SupportsInlineUpgrade { get; } = false;
+
             public override string WorkingDirectoryBackingRootPath
             {
                 get { return GVFSConstants.WorkingDirectoryRootName; }

@@ -92,8 +92,6 @@ namespace GVFS.Common
             return true;
         }
 
-        public abstract string GetProgramLocater();
-
         public abstract class GVFSPlatformConstants
         {
             public static readonly char PathSeparator = Path.DirectorySeparatorChar;
@@ -107,6 +105,8 @@ namespace GVFS.Common
             public abstract string GVFSBinDirectoryName { get; }
 
             public abstract string GVFSExecutableName { get; }
+
+            public abstract string ProgramLocaterCommand { get; }
 
             public abstract HashSet<string> UpgradeBlockingProcesses { get; }
 

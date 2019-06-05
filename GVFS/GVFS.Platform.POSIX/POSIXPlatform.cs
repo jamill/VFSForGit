@@ -177,11 +177,6 @@ namespace GVFS.Platform.POSIX
             return false;
         }
 
-        public override string GetProgramLocater()
-        {
-            return "which";
-        }
-
         public override bool TryKillProcessTree(int processId, out int exitCode, out string error)
         {
             ProcessResult result = ProcessHelper.Run("pkill", $"-P {processId}");
@@ -203,6 +198,11 @@ namespace GVFS.Platform.POSIX
             public override string GVFSExecutableName
             {
                 get { return "gvfs"; }
+            }
+
+            public override string ProgramLocaterCommand
+            {
+                get { return "which"; }
             }
 
             public override HashSet<string> UpgradeBlockingProcesses

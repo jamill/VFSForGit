@@ -146,11 +146,6 @@ namespace GVFS.UnitTests.Mock.Common
             return true;
         }
 
-        public override string GetProgramLocater()
-        {
-            return "MockWhere";
-        }
-
         public override FileBasedLock CreateFileBasedLock(PhysicalFileSystem fileSystem, ITracer tracer, string lockPath)
         {
             return new MockFileBasedLock(fileSystem, tracer, lockPath);
@@ -205,6 +200,11 @@ namespace GVFS.UnitTests.Mock.Common
             public override string GVFSExecutableName
             {
                 get { return "MockGVFS" + this.ExecutableExtension; }
+            }
+
+            public override string ProgramLocaterCommand
+            {
+                get { return "MockWhere"; }
             }
 
             public override HashSet<string> UpgradeBlockingProcesses

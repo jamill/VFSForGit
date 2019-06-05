@@ -19,7 +19,7 @@ namespace GVFS.Platform.Windows
                 return File.Exists(gitBinPath);
             }
 
-            return ProcessHelper.WhereDirectory(GVFSPlatform.Instance.GetProgramLocater(), GitProcessName) != null;
+            return ProcessHelper.WhereDirectory(GVFSPlatform.Instance.Constants.ProgramLocaterCommand, GitProcessName) != null;
         }
 
         public string GetInstalledGitBinPath()

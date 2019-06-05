@@ -244,7 +244,7 @@ namespace GVFS.Platform.Windows
         {
             error = null;
             hooksVersion = null;
-            hooksPath = ProcessHelper.WhereDirectory(GVFSPlatform.Instance.GetProgramLocater(), GVFSPlatform.Instance.Constants.GVFSHooksExecutableName);
+            hooksPath = ProcessHelper.WhereDirectory(GVFSPlatform.Instance.Constants.ProgramLocaterCommand, GVFSPlatform.Instance.Constants.GVFSHooksExecutableName);
             if (hooksPath == null)
             {
                 error = "Could not find " + GVFSPlatform.Instance.Constants.GVFSHooksExecutableName;
@@ -331,11 +331,6 @@ namespace GVFS.Platform.Windows
         public override bool IsGitStatusCacheSupported()
         {
             return File.Exists(Path.Combine(GVFSPlatform.Instance.GetDataRootForGVFSComponent(GVFSConstants.Service.ServiceName), GVFSConstants.GitStatusCache.EnableGitStatusCacheTokenFile));
-        }
-
-        public override string GetProgramLocater()
-        {
-            return "where";
         }
 
         public override FileBasedLock CreateFileBasedLock(
@@ -451,6 +446,11 @@ namespace GVFS.Platform.Windows
             public override string GVFSExecutableName
             {
                 get { return "GVFS" + this.ExecutableExtension; }
+            }
+
+            public override string ProgramLocaterCommand
+            {
+                get { return "where"; }
             }
 
             public override HashSet<string> UpgradeBlockingProcesses

@@ -109,6 +109,10 @@ namespace GVFS.Common
 
             public abstract string GVFSExecutableName { get; }
 
+            public abstract string ProgramLocaterCommand { get; }
+
+            public abstract HashSet<string> UpgradeBlockingProcesses { get; }
+
             public string GVFSHooksExecutableName
             {
                 get { return "GVFS.Hooks" + this.ExecutableExtension; }

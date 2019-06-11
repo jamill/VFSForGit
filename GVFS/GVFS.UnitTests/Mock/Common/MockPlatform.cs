@@ -215,6 +215,8 @@ namespace GVFS.UnitTests.Mock.Common
             {
                 get { return new HashSet<string> { "GVFS", "GVFS.Mount", "git", "wish", "bash" }; }
             }
+
+            public override bool SupportsInlineUpgrade { get; } = false;
         }
     }
 }

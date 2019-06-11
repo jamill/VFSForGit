@@ -14,7 +14,10 @@ namespace GVFS.Platform.Mac
 {
     public partial class MacPlatform : POSIXPlatform
     {
-        public MacPlatform()
+        public MacPlatform() : base(
+             underConstruction: new UnderConstructionFlags(
+                supportsGVFSUpgrade: true,
+                supportsGVFSConfig: true))
         {
         }
 

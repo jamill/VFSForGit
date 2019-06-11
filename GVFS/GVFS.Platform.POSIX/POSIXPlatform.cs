@@ -209,6 +209,8 @@ namespace GVFS.Platform.POSIX
             {
                 get { return new HashSet<string> { "GVFS.Mount", "git", "wish" }; }
             }
+
+            public override bool SupportsInlineUpgrade { get; } = true;
         }
     }
 }

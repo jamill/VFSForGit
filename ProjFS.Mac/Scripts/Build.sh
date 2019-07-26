@@ -21,7 +21,7 @@ PROJFS=$SRCDIR/ProjFS.Mac
 echo "Generating PrjFSVersion.h as $VERSION..."
 $SCRIPTDIR/GeneratePrjFSVersionHeader.sh $VERSION || exit 1
 
-xcodebuild -configuration $CONFIGURATION -project $PROJFS/PrjFS.xcodeproj  -scheme 'Build All' -derivedDataPath $ROOTDIR/BuildOutput/ProjFS.Mac/Native build || exit 1
+xcodebuild -configuration $CONFIGURATION -project $PROJFS/PrjFS.xcodeproj  -scheme 'Build All' -derivedDataPath $ROOTDIR/BuildOutput/ProjFS.Mac/Native build -quiet || exit 1
 
 if !(gem list --local | grep xcpretty); then
   echo "Attempting to run 'sudo gem install xcpretty'.  This may ask you for your password to gain admin privileges"
